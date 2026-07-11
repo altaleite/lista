@@ -172,6 +172,7 @@ button,input{font:inherit;color:inherit}
 .traits{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:11px;padding-top:10px;border-top:1px dashed var(--linha)}
 .trait{font-size:12px;color:var(--tinta)}
 .trait b{color:var(--muted);font-weight:800;font-size:10.5px}
+.btn-bs{display:block;width:100%;margin-top:11px;background:#EAF2FB;color:var(--azul);border:1px solid #CFE0F5;border-radius:12px;min-height:44px;font-weight:800;font-size:13px;cursor:pointer}
 </style>
 </head>
 <body>
@@ -515,6 +516,7 @@ function precoBloco(rot, lista, prom, flag){
   else { val='<span class="sobconsulta">Sob consulta</span>'; }
   return '<div class="pbloco"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+(flag?'<div class="estoque">⚠️ Conferir estoque</div>':'')+'</div>';
 }
+function bsUrl(t){ return t.codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
 function cardTouro(t){
   var fl=[]; if(t.cp)fl.push("CP"); if(t.cp511)fl.push("CP511"); if(t.a2)fl.push("A2A2");
   var chips=fl.map(function(f){return '<span class="tchip">'+f+'</span>';}).join("");
@@ -528,8 +530,10 @@ function cardTouro(t){
     (chips?'<div class="tchips">'+chips+'</div>':'')+
     '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag)+'</div>'+
     (traits?'<div class="traits">'+traits+'</div>':'')+
+    (bsUrl(t)?'<button class="btn-bs" data-bs="'+esc(bsUrl(t))+'">Ver ficha completa (BullSearch)</button>':'')+
     '<div class="acts"><button class="btn copy">Copiar</button><button class="btn wa">WhatsApp</button></div>';
-  var b=card.querySelectorAll(".btn");
+  var bs=card.querySelector('[data-bs]'); if(bs) bs.onclick=function(){ window.open(bs.dataset.bs,'_blank','noopener'); };
+  var b=card.querySelectorAll(".acts .btn");
   b[0].onclick=function(){copiar(msgTouro(t));};
   b[1].onclick=function(){whats(msgTouro(t));};
   return card;
@@ -552,6 +556,7 @@ function msgTouro(t){
     .filter(function(x){return x[1]!=null;}).map(function(x){return x[0]+" "+fmtTrait(x[1]);}).join(" · ");
   var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le+" — "):"";
   if(tr) L.push(prova+tr);
+  var u=bsUrl(t); if(u) L.push("Ficha completa: "+u);
   return L.join("\n");
 }
 async function shareImg(url){

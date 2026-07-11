@@ -416,7 +416,7 @@ function renderPromoCards(grupos, textos){
     card.innerHTML='<h3>'+esc(t.titulo)+' <span class="badge">promo</span></h3>'+
       '<div class="promo-corpo">'+esc(t.textoVendedor)+'</div>'+
       pedido+
-      '<div class="ipinote">As informações acima são para a equipe (incluem comissão). Os botões abaixo enviam a versão do cliente, sem comissão.</div>'+
+      
       '<div class="acts"><button class="btn copy">Copiar p/ cliente</button><button class="btn wa">WhatsApp</button></div>';
     var ped=card.querySelector("[data-ped]");
     if(ped){ ped.onclick=function(){ var box=card.querySelector("[data-pedbox]"); var open=box.style.display!=="none"; box.style.display=open?"none":"block"; ped.classList.toggle("open",!open); }; 

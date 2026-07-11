@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Alta · Lista de Preços</title>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
 <meta property="og:type" content="website"/>
@@ -244,6 +247,7 @@ var PERFIS = [
 var DADOS = EMBEDDED;
 var state = {pasta:null, area:null, promo:false, perfil:null, q:"", qtd:null};
 var $ = function(id){return document.getElementById(id);};
+function cadaNo(lista, fn){ for(var i=0;i<lista.length;i++) fn(lista[i],i); }
 function brl(v){ if(v==null||v==="")return "—"; return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"}); }
 function norm(s){ return String(s==null?"":s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,""); }
 function plural(u){ if(!u)return ""; return u.slice(-1)==="s"?u:u+"s"; }
@@ -263,7 +267,9 @@ function carregar(){
       var ex=d.bloqueadosPorDivergencia?(" · "+d.bloqueadosPorDivergencia+" bloqueado(s)"):"";
       fonte(true,"Preços ao vivo · "+d.itens.length+" itens"+ex);
     } else fonte(false,"Sem itens — usando exemplos");
-    render();
+    gate();
+    try{ render(); }catch(e){ fonte(false,"Dados carregados · falha de compatibilidade visual"); }
+    limpar(s);
   };
   var s=document.createElement("script");
   s.src=CONFIG.URL+(CONFIG.URL.indexOf("?")>=0?"&":"?")+"callback="+cb;
@@ -320,7 +326,7 @@ function trilha(){
 
 /* ---------- telas ---------- */
 function ligarBotoes(lista, cb){
-  $("app").querySelectorAll(".opt[data-i]").forEach(function(b){ b.onclick=function(){ cb(lista[Number(b.dataset.i)]); }; });
+  cadaNo($("app").querySelectorAll(".opt[data-i]"), function(b){ b.onclick=function(){ cb(lista[Number(b.dataset.i)]); }; });
 }
 function botao(o, i, ativa, soonTxt){
   var soon=!ativa;
@@ -504,9 +510,9 @@ function renderTourosScreen(){
     '<div class="list" id="tlist"></div>';
   $("tq").value=state.q||"";
   $("tq").oninput=function(e){ state.q=e.target.value; renderTouros(); };
-  app.querySelectorAll("[data-raca]").forEach(function(b){ b.onclick=function(){ state.raca=b.dataset.raca; renderTourosScreen(); }; });
-  app.querySelectorAll("[data-f]").forEach(function(b){ b.onclick=function(){ state[b.dataset.f]=!state[b.dataset.f]; renderTourosScreen(); }; });
-  app.querySelectorAll("[data-ord]").forEach(function(b){ b.onclick=function(){ state.ordem=b.dataset.ord; renderTourosScreen(); }; });
+  cadaNo(app.querySelectorAll("[data-raca]"), function(b){ b.onclick=function(){ state.raca=b.dataset.raca; renderTourosScreen(); }; });
+  cadaNo(app.querySelectorAll("[data-f]"), function(b){ b.onclick=function(){ state[b.dataset.f]=!state[b.dataset.f]; renderTourosScreen(); }; });
+  cadaNo(app.querySelectorAll("[data-ord]"), function(b){ b.onclick=function(){ state.ordem=b.dataset.ord; renderTourosScreen(); }; });
   renderTouros();
 }
 function precoBloco(rot, lista, prom, flag){
@@ -559,14 +565,11 @@ function msgTouro(t){
   var u=bsUrl(t); if(u) L.push("Ficha completa: "+u);
   return L.join("\n");
 }
-async function shareImg(url){
+function shareImg(url){
   try{
     if(navigator.share){
-      try{
-        var r=await fetch(url); var b=await r.blob();
-        var f=new File([b],"produto.jpg",{type:b.type||"image/jpeg"});
-        if(navigator.canShare && navigator.canShare({files:[f]})){ await navigator.share({files:[f]}); return; }
-      }catch(e){}
+      navigator.share({title:"Produto Alta",url:url}).catch(function(){});
+      return;
     }
   }catch(e){}
   window.open(url,"_blank","noopener");
@@ -642,8 +645,19 @@ $("senhaBtn").onclick=tentarSenha;
 $("senhaInput").onkeydown=function(e){ if(e.key==="Enter") tentarSenha(); };
 // aparelho que já entrou: some com a tela na hora. Senão, fica o "Carregando…" até saber se há senha.
 (function(){ try{ if(localStorage.getItem("alta_unlocked")) $("senhaGate").classList.add("hidden"); }catch(e){} })();
-render();
-carregar();
+
+function iniciarApp(){
+  // Inicia a conexão antes da renderização para que uma falha visual nunca interrompa o carregamento.
+  carregar();
+  try{ render(); }catch(e){ fonte(false,"Falha de compatibilidade visual"); }
+  // Segurança adicional: nenhum celular fica preso indefinidamente em “Carregando…”.
+  setTimeout(function(){
+    var load=$("senhaLoad");
+    if(load && !load.classList.contains("hidden")) gate();
+  },10000);
+}
+if(document.readyState==="loading") document.addEventListener("DOMContentLoaded",iniciarApp);
+else iniciarApp();
 
 </script>
 </body>

@@ -165,11 +165,13 @@ button,input{font:inherit;color:inherit}
 .tchip{font-size:10.5px;font-weight:800;color:#0A7B4F;background:#EAF7F0;border-radius:6px;padding:2px 8px}
 .precos{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:11px}
 .pbloco{background:#F7FAFE;border:1px solid var(--linha);border-radius:12px;padding:9px 11px}
+.pbloco.sexado{background:#FCEFF5;border-color:#EFCFE0}
 .plabel{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800}
 .pval{font-size:16px;margin-top:3px}
 .pval s{color:#9AABC0;font-weight:600;font-size:13px}
 .sobconsulta{font-size:13px;color:var(--muted);font-style:italic;font-weight:600}
 .estoque{font-size:10.5px;color:var(--promo);font-weight:700;margin-top:4px}
+.pmin{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:4px}
 .traits{display:flex;flex-wrap:wrap;gap:6px 12px;margin-top:11px;padding-top:10px;border-top:1px dashed var(--linha)}
 .trait{font-size:12px;color:var(--tinta)}
 .trait b{color:var(--muted);font-weight:800;font-size:10.5px}
@@ -533,12 +535,15 @@ function precoBloco(rot, lista, prom, flag, t){
   if(prom!=null){ val='<s>'+brl(lista)+'</s> <b>'+brl(prom)+'</b>'; tag=' <span class="badge">promo</span>'; }
   else if(lista!=null){ val='<b>'+brl(lista)+'</b>'; }
   else { val='<span class="sobconsulta">Sob consulta</span>'; }
-  var copy=(eff!=null&&t)?'<button class="pcopy" data-pcopy="'+esc(String(t.codigo)+" · "+t.nome+" · "+rot+" "+brl(eff))+'">Copiar p/ pedido</button>':'';
-  return '<div class="pbloco"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+(flag?'<div class="estoque">⚠️ Conferir estoque</div>':'')+copy+'</div>';
+  var copy=(eff!=null&&t)?'<button class="pcopy" data-pcopy="'+esc(codigoTipo(t.codigo,rot)+" · "+t.nome+" · "+rot+" "+brl(eff))+'">Copiar p/ pedido</button>':'';
+  var minNota=(prom!=null)?'<div class="pmin">mínimo '+(rot==="Sexado"?10:20)+' doses</div>':'';
+  var cls=(rot==="Sexado")?" sexado":"";
+  return '<div class="pbloco'+cls+'"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+minNota+(flag?'<div class="estoque">⚠️ Conferir estoque</div>':'')+copy+'</div>';
 }
 function effConv(t){ return t.convProm!=null?t.convProm:t.convLista; }
 function effSex(t){ return t.sexProm!=null?t.sexProm:t.sexLista; }
 function temPromoTouro(t){ return t.convProm!=null||t.sexProm!=null; }
+function codigoTipo(codigo,tipo){ var s=String(codigo||''); var suf=s.length>3?s.slice(3):s; return (tipo==='Sexado'?'511':'011')+suf; }
 function bsUrl(t){ return t.codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
 function cardTouro(t){
   var fl=[]; if(t.cp)fl.push("CP"); if(t.cp511)fl.push("CP511"); if(t.a2)fl.push("A2A2");
@@ -580,6 +585,12 @@ function msgTouro(t){
   L.push("");
   L.push("Convencional: "+precoTxt(t.convLista,t.convProm));
   L.push("Sexado: "+precoTxt(t.sexLista,t.sexProm));
+  if(t.convProm!=null||t.sexProm!=null){
+    L.push("");
+    L.push("Promoção — válida só para clientes finais.");
+    if(t.sexProm!=null) L.push("Sexado: mínimo 10 doses por touro.");
+    if(t.convProm!=null) L.push("Convencional: mínimo 20 doses por touro.");
+  }
   var tr=[["TPI",t.tpi],["NM$",t.nm],["LEITE",t.leite],["PL",t.pl],["UDC",t.udc],["DPR",t.dpr]].filter(function(x){return x[1]!=null;});
   if(tr.length){
     L.push("");

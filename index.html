@@ -22,7 +22,7 @@
   --r:16px;
 }
 *{box-sizing:border-box}
-html,body{margin:0;background:var(--bg);color:var(--tinta);overflow-x:hidden;
+html,body{margin:0;background:var(--bg);color:var(--tinta);
   font-family:"Segoe UI",system-ui,-apple-system,Roboto,Arial,sans-serif;-webkit-text-size-adjust:100%}
 button,input{font:inherit;color:inherit}
 .wrap{max-width:680px;margin:0 auto;padding:0 14px 96px}
@@ -174,6 +174,8 @@ button,input{font:inherit;color:inherit}
 .trait{font-size:12px;color:var(--tinta)}
 .trait b{color:var(--muted);font-weight:800;font-size:10.5px}
 .btn-bs{display:block;width:100%;margin-top:11px;background:#EAF2FB;color:var(--azul);border:1px solid #CFE0F5;border-radius:12px;min-height:44px;font-weight:800;font-size:13px;cursor:pointer}
+.pcopy{display:block;width:100%;margin-top:8px;background:#fff;border:1px solid #CFE0F5;color:var(--azul);border-radius:9px;min-height:34px;font-size:11.5px;font-weight:800;cursor:pointer}
+.pcopy:active{filter:brightness(.95)}
 </style>
 </head>
 <body>
@@ -227,8 +229,8 @@ var AREAS = {
   "Leite":[
     {id:"Neonatos", desc:"Colostro, AltaLYTE, acessórios", ic:"N"},
     {id:"Alta ID e transição", desc:"Marcadores e CAL24", ic:"ID"},
-    {id:"Leite Europeu", desc:"Sêmen", ic:"EU"},
-    {id:"Leite Tropical", desc:"Sêmen", ic:"TR"}
+    {id:"Leite Europeu", nome:"LE", desc:"Sêmen", ic:"EU"},
+    {id:"Leite Tropical", nome:"LT", desc:"Sêmen", ic:"TR"}
   ],
   "Corte":[
     {id:"Neonatos", desc:"Colostro, AltaLYTE, acessórios", ic:"N"},
@@ -310,11 +312,12 @@ function voltar(){
   else if(n==="area"){ state.pasta=null; }
   render();
 }
+function areaNome(id){ for(var p in AREAS){ for(var i=0;i<AREAS[p].length;i++){ if(AREAS[p][i].id===id) return AREAS[p][i].nome||AREAS[p][i].id; } } return id; }
 function perfilNome(id){ for(var i=0;i<PERFIS.length;i++){ if(PERFIS[i].id===id) return PERFIS[i].nome||PERFIS[i].id; } return id; }
 function trilha(){
   var p=[];
   if(state.pasta) p.push(state.pasta);
-  if(state.area) p.push(state.area);
+  if(state.area) p.push(areaNome(state.area));
   if(state.perfil) p.push(perfilNome(state.perfil));
   else if(state.promo) p.push("Promoções");
   if(!p.length) return "";
@@ -362,7 +365,7 @@ function render(){
     var pb='<div class="opts" style="margin-bottom:11px"><button class="opt promo" id="btnPromo">'+
       '<span class="ic">%</span><span class="tx"><b>Promoções</b></span><span class="go">›</span></button></div>';
     var disp=PERFIS.filter(function(o){ return itensDoPerfil(o.id).length>0; });
-    app.innerHTML='<div class="screen"><h2>'+state.area+' · '+state.pasta+'</h2><p class="lead">Veja as ofertas ou escolha o tipo de cliente.</p>'+
+    app.innerHTML='<div class="screen"><h2>'+areaNome(state.area)+' · '+state.pasta+'</h2><p class="lead">Veja as ofertas ou escolha o tipo de cliente.</p>'+
       pb+'<div class="opts">'+disp.map(function(o,i){return botao(o,i,true);}).join('')+'</div></div>';
     $("btnPromo").onclick=function(){ state.promo=true; render(); };
     ligarBotoes(disp,function(o){ state.perfil=o.id; state.q=""; state.qtd=null; render(); });
@@ -447,13 +450,16 @@ function unidQtd(it,qtd){ return qtd===1 ? it.unidade : plural(it.unidade); }
 function msgCliente(grupo,qtd){
   var g0=grupo[0];
   var L=["*"+g0.produto+"*"+(g0.apresentacao?" ("+g0.apresentacao+")":"")];
+  L.push("");
   var hit=qtd?grupo.find(function(x){return casa(x,qtd);}):null;
   if(hit){ L.push("Para "+qtd+" "+unidQtd(hit,qtd)+": *"+brl(hit.precoVigente)+"*"+(hit.emPromo?" 🔥 PROMO":"")); }
   else { grupo.forEach(function(x){ L.push("• "+rotulo(x)+": "+brl(x.precoVigente)+(x.emPromo?" 🔥 PROMO":"")); }); }
-  if(g0.ipi) L.push("*Preço final já com IPI de "+pct(g0.ipi)+" incluído.");
-  if(g0.tipo!=="Acessório" && g0.obs) L.push(g0.obs);
+  var notas=[];
+  if(g0.ipi) notas.push("*Preço final já com IPI de "+pct(g0.ipi)+" incluído.");
+  if(g0.tipo!=="Acessório" && g0.obs) notas.push(g0.obs);
   var pr=grupo.find(function(x){return x.emPromo;});
-  if(pr && pr.promoFim) L.push("🔥 Promoção válida até "+pr.promoFim+".");
+  if(pr && pr.promoFim) notas.push("🔥 Promoção válida até "+pr.promoFim+".");
+  if(notas.length){ L.push(""); notas.forEach(function(n){L.push(n);}); }
   L.push("");
   L.push("Válido até "+(g0.validade||"a data da lista vigente")+" ou enquanto durar o estoque.");
   L.push(PARCELAMENTO);
@@ -479,11 +485,18 @@ function tourosFiltrados(){
   if(state.fCP) arr=arr.filter(function(t){return t.cp;});
   if(state.fCP511) arr=arr.filter(function(t){return t.cp511;});
   if(state.fA2) arr=arr.filter(function(t){return t.a2;});
+  if(state.fConv) arr=arr.filter(function(t){return t.convLista!=null||t.convProm!=null;});
+  if(state.fSex) arr=arr.filter(function(t){return t.sexLista!=null||t.sexProm!=null;});
+  if(state.fPromo) arr=arr.filter(function(t){return temPromoTouro(t);});
   var q=norm(state.q);
   if(q) arr=arr.filter(function(t){ var s=norm((t.nome||"")+" "+(t.codigo||"")); return q.split(/\s+/).every(function(w){return s.indexOf(w)>=0;}); });
   var o=state.ordem||"nome";
   arr=arr.slice().sort(function(a,b){
     if(o==="nome") return String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR");
+    if(o==="precoConv"||o==="precoSex"){
+      var fa=(o==="precoConv"?effConv(a):effSex(a)), fb=(o==="precoConv"?effConv(b):effSex(b));
+      if(fa==null)fa=Infinity; if(fb==null)fb=Infinity; return fa-fb;
+    }
     var av=(a[o]==null?-1e12:a[o]), bv=(b[o]==null?-1e12:b[o]); return bv-av;
   });
   return arr;
@@ -494,8 +507,11 @@ function renderTourosScreen(){
     racasDisp().map(function(r){return '<button class="chip'+(state.raca===r?" on":"")+'" data-raca="'+esc(r)+'">'+esc(r)+'</button>';}).join("");
   var flagChips='<button class="chip'+(state.fCP?" on":"")+'" data-f="fCP">CP</button>'+
     '<button class="chip'+(state.fCP511?" on":"")+'" data-f="fCP511">CP511</button>'+
-    '<button class="chip'+(state.fA2?" on":"")+'" data-f="fA2">A2A2</button>';
-  var ordens=[["nome","A-Z"],["tpi","TPI"],["leite","Leite"],["nm","NM$"]];
+    '<button class="chip'+(state.fA2?" on":"")+'" data-f="fA2">A2A2</button>'+
+    '<button class="chip'+(state.fConv?" on":"")+'" data-f="fConv">Convencional</button>'+
+    '<button class="chip'+(state.fSex?" on":"")+'" data-f="fSex">Sexado</button>'+
+    '<button class="chip'+(state.fPromo?" on":"")+'" data-f="fPromo">🔥 Promo</button>';
+  var ordens=[["nome","A-Z"],["precoConv","Preço conv."],["precoSex","Preço sex."],["tpi","TPI"],["leite","Leite"],["nm","NM$"]];
   var ordChips=ordens.map(function(o){return '<button class="chip ord'+(state.ordem===o[0]?" on":"")+'" data-ord="'+o[0]+'">'+o[1]+'</button>';}).join("");
   var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";
   app.innerHTML=
@@ -512,13 +528,17 @@ function renderTourosScreen(){
   app.querySelectorAll("[data-ord]").forEach(function(b){ b.onclick=function(){ state.ordem=b.dataset.ord; renderTourosScreen(); }; });
   renderTouros();
 }
-function precoBloco(rot, lista, prom, flag){
-  var val, tag="";
+function precoBloco(rot, lista, prom, flag, t){
+  var val, tag="", eff=(prom!=null?prom:lista);
   if(prom!=null){ val='<s>'+brl(lista)+'</s> <b>'+brl(prom)+'</b>'; tag=' <span class="badge">promo</span>'; }
   else if(lista!=null){ val='<b>'+brl(lista)+'</b>'; }
   else { val='<span class="sobconsulta">Sob consulta</span>'; }
-  return '<div class="pbloco"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+(flag?'<div class="estoque">⚠️ Conferir estoque</div>':'')+'</div>';
+  var copy=(eff!=null&&t)?'<button class="pcopy" data-pcopy="'+esc(String(t.codigo)+" · "+t.nome+" · "+rot+" "+brl(eff))+'">Copiar p/ pedido</button>':'';
+  return '<div class="pbloco"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+(flag?'<div class="estoque">⚠️ Conferir estoque</div>':'')+copy+'</div>';
 }
+function effConv(t){ return t.convProm!=null?t.convProm:t.convLista; }
+function effSex(t){ return t.sexProm!=null?t.sexProm:t.sexLista; }
+function temPromoTouro(t){ return t.convProm!=null||t.sexProm!=null; }
 function bsUrl(t){ return t.codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
 function cardTouro(t){
   var fl=[]; if(t.cp)fl.push("CP"); if(t.cp511)fl.push("CP511"); if(t.a2)fl.push("A2A2");
@@ -528,16 +548,17 @@ function cardTouro(t){
     .map(function(x){return '<span class="trait"><b>'+x[0]+'</b> '+fmtTrait(x[1])+'</span>';}).join("");
   var card=document.createElement("article"); card.className="card touro";
   card.innerHTML=
-    '<div class="thead"><h3>'+esc(t.nome)+'</h3><span class="traca">'+esc(t.raca)+'</span></div>'+
+    '<div class="thead"><h3>'+esc(t.nome)+(temPromoTouro(t)?' <span class="badge">🔥 promo</span>':'')+'</h3><span class="traca">'+esc(t.raca)+'</span></div>'+
     '<div class="tcod">Cód. '+esc(t.codigo)+'</div>'+
     (chips?'<div class="tchips">'+chips+'</div>':'')+
     (t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':'')+
-    '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag)+'</div>'+
+    '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag,t)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag,t)+'</div>'+
     (traits?'<div class="traits">'+traits+'</div>':'')+
     (bsUrl(t)?'<button class="btn-bs" data-bs="'+esc(bsUrl(t))+'">Ver ficha completa (BullSearch)</button>':'')+
     '<div class="acts"><button class="btn copy">Copiar</button><button class="btn wa">WhatsApp</button></div>';
   var tio=card.querySelector('[data-imgopen]'); if(tio) tio.onclick=function(){window.open(tio.dataset.imgopen,'_blank','noopener');};
   var tis=card.querySelector('[data-imgshare]'); if(tis) tis.onclick=function(){shareImg(tis.dataset.imgshare);};
+  card.querySelectorAll('[data-pcopy]').forEach(function(pb){ pb.onclick=function(){ copiar(pb.dataset.pcopy); }; });
   var bs=card.querySelector('[data-bs]'); if(bs) bs.onclick=function(){ window.open(bs.dataset.bs,'_blank','noopener'); };
   var b=card.querySelectorAll(".acts .btn");
   b[0].onclick=function(){copiar(msgTouro(t));};
@@ -556,13 +577,17 @@ function msgTouro(t){
   var fl=[]; if(t.cp)fl.push("Concept Plus"); if(t.cp511)fl.push("Sexado CP511"); if(t.a2)fl.push("A2A2");
   var L=["*"+t.nome+"* — "+t.raca+(fl.length?" ("+fl.join(" · ")+")":"")];
   L.push("Cód. "+t.codigo);
+  L.push("");
   L.push("Convencional: "+precoTxt(t.convLista,t.convProm));
   L.push("Sexado: "+precoTxt(t.sexLista,t.sexProm));
-  var tr=[["TPI",t.tpi],["Leite",t.leite],["NM$",t.nm],["PL",t.pl],["UDC",t.udc],["DPR",t.dpr]]
-    .filter(function(x){return x[1]!=null;}).map(function(x){return x[0]+" "+fmtTrait(x[1]);}).join(" · ");
-  var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le+" — "):"";
-  if(tr) L.push(prova+tr);
-  var u=bsUrl(t); if(u) L.push("Ficha completa: "+u);
+  var tr=[["TPI",t.tpi],["NM$",t.nm],["LEITE",t.leite],["PL",t.pl],["UDC",t.udc],["DPR",t.dpr]].filter(function(x){return x[1]!=null;});
+  if(tr.length){
+    L.push("");
+    var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";
+    if(prova) L.push(prova);
+    tr.forEach(function(x){ L.push(x[0]+" "+fmtTrait(x[1])); });
+  }
+  var u=bsUrl(t); if(u){ L.push(""); L.push("Ficha completa: "+u); }
   return L.join("\n");
 }
 async function shareImg(url){

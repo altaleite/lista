@@ -619,12 +619,15 @@ function cardMaterial(m){
   var precos='<div class="precos">'+matPreco("Vazio (com ICMS)",m.precoVazio,m,"Vazio")+matPreco("Com R$ 500 sêmen + N²",m.precoSemen,m,"Com sêmen")+'</div>';
   var specs=(m.specs||[]).map(function(s){ return '<li><span>'+esc(s[0])+'</span><span class="vl">'+fmtNum(s[1])+'</span></li>'; }).join("");
   var estoque=m.flag?'<div class="estoque">⚠️ Sob consulta — conferir estoque antes do pedido</div>':'';
+  var img=m.imagem?('<div class="prodimg"><img src="'+esc(m.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(m.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(m.imagem)+'">Baixar / enviar foto</button></div>'):'';
   var card=document.createElement("article"); card.className="card touro";
   card.innerHTML='<div class="thead"><h3>'+esc(m.nome)+'</h3><span class="traca">Botijão</span></div>'+
-    '<div class="tcod">Cód. '+esc(m.codigo)+'</div>'+precos+estoque+
+    '<div class="tcod">Cód. '+esc(m.codigo)+'</div>'+img+precos+estoque+
     '<div class="fichatitulo">Ficha técnica</div><ul class="faixas">'+specs+'</ul>'+
     '<div class="acts"><button class="btn copy">Copiar</button><button class="btn wa">WhatsApp</button></div>';
   card.querySelectorAll('[data-pcopy]').forEach(function(pb){ pb.onclick=function(){ copiar(pb.dataset.pcopy); }; });
+  var mio=card.querySelector('[data-imgopen]'); if(mio) mio.onclick=function(){window.open(mio.dataset.imgopen,'_blank','noopener');};
+  var mis=card.querySelector('[data-imgshare]'); if(mis) mis.onclick=function(){shareImg(mis.dataset.imgshare);};
   var b=card.querySelectorAll(".acts .btn");
   b[0].onclick=function(){copiar(msgMaterial(m));};
   b[1].onclick=function(){whats(msgMaterial(m));};

@@ -53,6 +53,11 @@ button,input{font:inherit;color:inherit}
 .screen p.lead{margin:0 0 16px;color:var(--muted);font-size:13px}
 
 .opts{display:grid;gap:11px}
+.areacard{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;border:0;box-shadow:0 3px 12px rgba(0,60,136,.14);justify-content:space-between;min-height:66px}
+.areacard .areacard-tt{font-size:16.5px;font-weight:800;letter-spacing:.01em}
+.areacard .areacard-go{font-size:22px;opacity:.85}
+.areacard.soon{background:#EAEFF6;color:#93A6C0;box-shadow:none}
+.areacard.soon .areacard-go{font-size:12px;font-weight:800}
 .opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
   background:var(--papel);border:1.5px solid var(--linha);border-radius:var(--r);
   padding:17px 16px;box-shadow:var(--sombra);transition:transform .06s,border-color .12s}
@@ -350,6 +355,12 @@ function trilha(){
 function ligarBotoes(lista, cb){
   $("app").querySelectorAll(".opt[data-i]").forEach(function(b){ b.onclick=function(){ cb(lista[Number(b.dataset.i)]); }; });
 }
+function cardArea(o,i,ativa,soonTxt){
+  var soon=!ativa;
+  return '<button class="opt areacard'+(soon?' soon':'')+'" data-i="'+i+'">'+
+    '<span class="areacard-tt">'+(o.nome||o.id)+'</span>'+
+    '<span class="areacard-go">'+(soon?(soonTxt||'EM BREVE'):'›')+'</span></button>';
+}
 function botao(o, i, ativa, soonTxt){
   var soon=!ativa;
   return '<button class="opt'+(soon?' soon':'')+'" data-i="'+i+'">'+
@@ -370,10 +381,10 @@ function render(){
     return;
   }
   if(n==="area"){
-    var lista=AREAS[state.pasta]||[];
-    app.innerHTML='<div class="screen"><h2>'+state.pasta+' — escolha a área</h2>'+
+    var lista=(AREAS[state.pasta]||[]).slice().sort(function(a,b){return String(a.nome||a.id).localeCompare(String(b.nome||b.id),"pt-BR");});
+    app.innerHTML='<div class="screen"><h2>'+state.pasta+'</h2>'+
       '<p class="lead">As marcadas "em breve" ainda não têm preços publicados.</p><div class="opts">'+
-      lista.map(function(o,i){ return botao(o,i,temDadosArea(state.pasta,o.id)); }).join('')+'</div></div>';
+      lista.map(function(o,i){ return cardArea(o,i,temDadosArea(state.pasta,o.id)); }).join('')+'</div></div>';
     ligarBotoes(lista,function(o){ state.area=o.id; render(); });
     return;
   }
@@ -453,7 +464,7 @@ function renderPromoCards(grupos, textos){
   (grupos||[]).forEach(function(g){
     var g0=g[0];
     var faixas=g.map(function(x){
-      return '<li><span>'+rotulo(x)+'</span><span class="vl"><s style="color:#9AABC0;font-weight:600">'+brl(x.precoPublicado)+'</s> '+brl(x.precoVigente)+'</span></li>';
+      return '<li><span>'+rotulo(x)+'</span><span class="vl"><s style="color:#9AABC0;font-weight:600">'+brl(x.precoPublicado)+'</s> '+brl(x.precoVigente)+pctOff(x)+'</span></li>';
     }).join("");
     var ate=g0.promoFim?('<div class="ipinote">Oferta válida até '+g0.promoFim+'.</div>'):'';
     var card=document.createElement("article"); card.className="card";
@@ -501,6 +512,7 @@ function agrupar(arr){
   return gs;
 }
 /* ---------- Sêmen: touros ---------- */
+function pctOff(x){ if(!x.emPromo||!x.precoPublicado||x.precoPublicado<=0) return ''; var p=Math.round((x.precoPublicado-x.precoVigente)/x.precoPublicado*100); return p>0?' <span class="descoff">−'+p+'%</span>':''; }
 function fmtTrait(v){
   if(v==null||v==="")return "—";
   if(typeof v==="number") return Number.isInteger(v)?String(v):(Math.round(v*10)/10).toString().replace(".",",");
@@ -766,7 +778,8 @@ function renderResultado(){
     var g0=g[0], promo=g.some(function(x){return x.emPromo;});
     var faixas=g.map(function(x){
       var hit=casa(x,qtd)?"hit":"";
-      return '<li class="'+hit+'"><span>'+rotulo(x)+(x.emPromo?' 🔥':'')+'</span><span class="vl">'+brl(x.precoVigente)+'</span></li>';
+      var preco = x.emPromo ? ('<s style="color:#9AABC0;font-weight:600">'+brl(x.precoPublicado)+'</s> '+brl(x.precoVigente)+pctOff(x)) : brl(x.precoVigente);
+      return '<li class="'+hit+'"><span>'+rotulo(x)+'</span><span class="vl">'+preco+'</span></li>';
     }).join("");
     var card=document.createElement("article"); card.className="card";
     var img=g0.imagem?('<div class="prodimg"><img src="'+esc(g0.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(g0.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(g0.imagem)+'">Baixar / enviar imagem</button></div>'):'';

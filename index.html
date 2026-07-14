@@ -53,11 +53,12 @@ button,input{font:inherit;color:inherit}
 .screen p.lead{margin:0 0 16px;color:var(--muted);font-size:13px}
 
 .opts{display:grid;gap:11px}
-.areacard{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;border:0;box-shadow:0 3px 12px rgba(0,60,136,.14);justify-content:space-between;min-height:66px}
-.areacard .areacard-tt{font-size:16.5px;font-weight:800;letter-spacing:.01em}
-.areacard .areacard-go{font-size:22px;opacity:.85}
-.areacard.soon{background:#EAEFF6;color:#93A6C0;box-shadow:none}
-.areacard.soon .areacard-go{font-size:12px;font-weight:800}
+.opt.areacard{background:linear-gradient(135deg,var(--azul),var(--azul2));color:#fff;border:0;box-shadow:0 3px 12px rgba(0,60,136,.14);justify-content:space-between;min-height:66px}
+.opt.areacard .areacard-tt{font-size:16.5px;font-weight:800;letter-spacing:.01em;color:#fff}
+.opt.areacard .areacard-go{font-size:22px;opacity:.9;color:#fff}
+.opt.areacard.soon{background:#EAEFF6;box-shadow:none}
+.opt.areacard.soon .areacard-tt{color:#93A6C0}
+.opt.areacard.soon .areacard-go{font-size:12px;font-weight:800;color:#93A6C0}
 .opt{display:flex;align-items:center;gap:14px;width:100%;text-align:left;cursor:pointer;
   background:var(--papel);border:1.5px solid var(--linha);border-radius:var(--r);
   padding:17px 16px;box-shadow:var(--sombra);transition:transform .06s,border-color .12s}
@@ -138,6 +139,8 @@ button,input{font:inherit;color:inherit}
   background:var(--tinta);color:#fff;padding:11px 18px;border-radius:999px;font-size:13px;font-weight:700;
   opacity:0;pointer-events:none;transition:.2s;z-index:50}
 .toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+.btn-pdf{display:block;width:100%;margin:10px 0 2px;background:#fff;border:1.5px solid var(--azul);color:var(--azul);border-radius:12px;min-height:46px;font-weight:800;font-size:14px;cursor:pointer}
+.btn-pdf:active{background:#EAF2FB}
 .btn-promo-area{display:block;width:100%;margin:12px 0 2px;background:linear-gradient(135deg,#C2410C,#E8590C);color:#fff;border:0;border-radius:12px;min-height:48px;font-weight:800;font-size:14px;cursor:pointer}
 .btn-promo-area:active{filter:brightness(.95)}
 .demo-banner{margin:10px 0 0;background:#FEF3E2;border:1px solid #F4C79B;color:#8A4B10;border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;line-height:1.4}
@@ -376,7 +379,7 @@ function render(){
 
   if(n==="pasta"){
     app.innerHTML='<div class="screen"><h2>Qual lista?</h2><p class="lead">Toque para começar.</p><div class="opts">'+
-      PASTAS.map(function(o,i){ return botao(o,i,temDadosPasta(o.id),'em breve'); }).join('')+'</div></div>';
+      PASTAS.map(function(o,i){ return cardArea(o,i,temDadosPasta(o.id),'em breve'); }).join('')+'</div></div>';
     ligarBotoes(PASTAS,function(o){ state.pasta=o.id; render(); });
     return;
   }
@@ -419,8 +422,9 @@ function render(){
   app.innerHTML=
     '<div class="inputs"><input id="q" placeholder="Buscar produto ou código" autocomplete="off"/>'+
     '<input id="qtd" placeholder="Qtde" inputmode="numeric"/></div>'+
-    '<div id="hero"></div><div class="list" id="list"></div>';
+    '<div id="hero"></div>'+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+'<div class="list" id="list"></div>';
   $("q").value=state.q; $("qtd").value=state.qtd||"";
+  { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   $("q").oninput=function(e){ state.q=e.target.value; renderResultado(); };
   $("qtd").oninput=function(e){ var v=parseInt(e.target.value,10); state.qtd=isNaN(v)?null:v; renderResultado(); };
   renderResultado();
@@ -564,7 +568,7 @@ function renderTourosScreen(){
   var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";
   var _np=promosTextoArea().length;
   var _pb=_np?'<button class="btn-promo-area" id="btnPromoArea">🔥 Promoções da área ('+_np+')</button>':'';
-  app.innerHTML=_pb+
+  app.innerHTML=_pb+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+
     '<div class="tbar"><input id="tq" placeholder="Buscar touro por nome ou código" autocomplete="off"/>'+
     '<div class="chips">'+racaChips+'</div>'+
     '<div class="chips">'+flagChips+'</div>'+
@@ -573,6 +577,7 @@ function renderTourosScreen(){
     '<div class="list" id="tlist"></div>';
   $("tq").value=state.q||"";
   var _bp=$("btnPromoArea"); if(_bp) _bp.onclick=function(){ state.promo=true; render(); };
+  { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   $("tq").oninput=function(e){ state.q=e.target.value; renderTouros(); };
   app.querySelectorAll("[data-raca]").forEach(function(b){ b.onclick=function(){ state.raca=b.dataset.raca; renderTourosScreen(); }; });
   app.querySelectorAll("[data-f]").forEach(function(b){ b.onclick=function(){ state[b.dataset.f]=!state[b.dataset.f]; renderTourosScreen(); }; });
@@ -693,8 +698,9 @@ function renderMateriais(){
   var app=$("app"); var arr=materiaisBase();
   var _np=promosTextoArea().length;
   var _pb=_np?'<button class="btn-promo-area" id="btnPromoAreaM">🔥 Promoções da área ('+_np+')</button>':'';
-  app.innerHTML='<div class="screen">'+_pb+'<h2>Materiais para IA</h2><p class="lead">Botijões — ficha técnica e valores.</p><div class="list" id="mlist"></div></div>';
+  app.innerHTML='<div class="screen">'+_pb+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button><h2>Materiais para IA</h2><p class="lead">Botijões — ficha técnica e valores.</p><div class="list" id="mlist"></div></div>';
   var _bpm=$("btnPromoAreaM"); if(_bpm) _bpm.onclick=function(){ state.promo=true; render(); };
+  { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   var el=$("mlist"); arr.forEach(function(m){ el.appendChild(cardMaterial(m)); });
 }
 function msgMaterial(m){
@@ -723,7 +729,8 @@ function cardSoftware(s){
 }
 function renderSoftwares(){
   var app=$("app"); var arr=softwaresBase();
-  app.innerHTML='<div class="screen"><h2>Softwares</h2><p class="lead">Planos e valores.</p><div class="list" id="swlist"></div></div>';
+  app.innerHTML='<div class="screen">'+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+'<h2>Softwares</h2><p class="lead">Planos e valores.</p><div class="list" id="swlist"></div></div>';
+  { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   var el=$("swlist"); arr.forEach(function(s){ el.appendChild(cardSoftware(s)); });
 }
 function msgSoftware(s){
@@ -749,6 +756,48 @@ async function shareImg(url){
   }catch(e){}
   window.open(url,"_blank","noopener");
 }
+function pdfCss(){ return '<style>'+
+ '*{box-sizing:border-box;margin:0;padding:0;font-family:"Segoe UI",Arial,sans-serif}body{color:#0B1B33}'+
+ '.pdfbar{position:sticky;top:0;background:#003C88;padding:10px;text-align:center;z-index:5}'+
+ '.pdfbar button{background:#fff;color:#003C88;border:0;border-radius:8px;padding:11px 20px;font-weight:800;font-size:15px;cursor:pointer}'+
+ '.pdfhead{background:linear-gradient(135deg,#003C88,#0057A8);color:#fff;padding:20px 26px;display:flex;justify-content:space-between;align-items:center;gap:16px}'+
+ '.pdfhead img{height:38px}.pdftit{font-size:22px;font-weight:800}.pdfsub{font-size:15px;opacity:.95;margin-top:2px}.pdfdata{font-size:11px;opacity:.85;margin-top:4px}'+
+ '.wrap{padding:18px 26px}.pblock{margin:0 0 15px;break-inside:avoid;page-break-inside:avoid}'+
+ '.pnome{font-size:15px;font-weight:800;color:#003C88;margin:0 0 5px}.pnome .ap{font-weight:600;color:#5A6B82;font-size:13px}'+
+ 'table{width:100%;border-collapse:collapse;font-size:13px}'+
+ 'th{background:#EAF2FB;color:#003C88;text-align:left;padding:6px 10px;font-size:10.5px;text-transform:uppercase;letter-spacing:.02em}'+
+ 'td{padding:6px 10px;border-bottom:1px solid #ECF1F7}.r{text-align:right}s{color:#9AABC0}.ttab td,.ttab th{font-size:11.5px;padding:5px 8px}'+
+ '.pdffoot{padding:14px 26px;color:#5A6B82;font-size:11px;border-top:1px solid #ECF1F7;margin-top:14px;line-height:1.5}'+
+ '@media print{.noprint{display:none!important}.pdfhead,th{-webkit-print-color-adjust:exact;print-color-adjust:exact}@page{margin:11mm}}</style>'; }
+function pdfLogo(){ try{ var im=document.querySelector(".senha-box img"); if(im&&im.src) return '<img src="'+im.src+'" alt="Alta"/>'; }catch(e){} return '<b style="font-size:24px">Alta</b>'; }
+function pdfHeader(sub){ var hoje=new Date().toLocaleDateString("pt-BR");
+ return '<div class="pdfhead"><div>'+pdfLogo()+'</div><div style="text-align:right"><div class="pdftit">Lista de Pre\u00e7os</div><div class="pdfsub">'+esc(sub)+'</div><div class="pdfdata">Emitida em '+hoje+'</div></div></div>'; }
+function pdfFooter(){ return '<div class="pdffoot">'+esc(PARCELAMENTO)+'<br>Pre\u00e7os sujeitos a altera\u00e7\u00e3o e \u00e0 confirma\u00e7\u00e3o de estoque. Consulte seu representante Alta.</div>'; }
+function pdfPreco(pub, vig, promo){ if(vig==null) return "\u2014"; return promo?('<s>'+brl(pub)+'</s> <b>'+brl(vig)+'</b>'):brl(vig); }
+function pdfProdutos(perfil){ var grupos=agrupar(itensDoPerfil(perfil)); var body="";
+ grupos.forEach(function(g){ var g0=g[0];
+  var linhas=g.map(function(x){ return '<tr><td>'+esc(rotulo(x))+'</td><td class="r">'+pdfPreco(x.precoPublicado,x.precoVigente,x.emPromo)+'</td></tr>'; }).join("");
+  body+='<div class="pblock"><div class="pnome">'+esc(g0.produto)+(g0.apresentacao?' <span class="ap">('+esc(g0.apresentacao)+')</span>':'')+'</div><table><thead><tr><th>Quantidade</th><th class="r">Pre\u00e7o</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'; });
+ return body||'<p>Sem itens para este perfil.</p>'; }
+function pdfTouros(){ var arr=tourosBase().slice().sort(function(a,b){return String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR");});
+ var rows=arr.map(function(t){ return '<tr><td>'+esc(t.nome)+'</td><td>'+esc(t.codigo)+'</td><td>'+esc(t.raca||"")+'</td><td class="r">'+pdfPreco(t.convLista,(t.convProm!=null?t.convProm:t.convLista),t.convProm!=null)+'</td><td class="r">'+pdfPreco(t.sexLista,(t.sexProm!=null?t.sexProm:t.sexLista),t.sexProm!=null)+'</td></tr>'; }).join("");
+ return '<table class="ttab"><thead><tr><th>Touro</th><th>C\u00f3digo</th><th>Ra\u00e7a</th><th class="r">Convencional</th><th class="r">Sexado</th></tr></thead><tbody>'+rows+'</tbody></table>'; }
+function pdfMateriais(){ var rows=materiaisBase().map(function(m){ return '<tr><td>'+esc(m.nome)+'</td><td>'+esc(m.codigo)+'</td><td class="r">'+(m.precoVazio!=null?brl(m.precoVazio):"\u2014")+'</td><td class="r">'+(m.precoSemen!=null?brl(m.precoSemen):"\u2014")+'</td></tr>'; }).join("");
+ return '<table class="ttab"><thead><tr><th>Modelo</th><th>C\u00f3digo</th><th class="r">Vazio (c/ ICMS)</th><th class="r">Com R$500 s\u00eamen+N\u00b2</th></tr></thead><tbody>'+rows+'</tbody></table>'; }
+function pdfSoftwares(){ var body=""; softwaresBase().forEach(function(s){ var linhas=(s.planos||[]).map(function(p){ return '<tr><td>'+esc(p.categoria)+'</td><td class="r">'+brl(p.normal)+esc(p.unidade||"")+'</td><td class="r">'+brl(p.cliente)+esc(p.unidade||"")+'</td></tr>'; }).join("");
+  body+='<div class="pblock"><div class="pnome">'+esc(s.nome)+(s.descricao?' <span class="ap">'+esc(s.descricao)+'</span>':'')+'</div><table><thead><tr><th>Categoria</th><th class="r">Normal</th><th class="r">Cliente</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'; });
+ return body; }
+function gerarPDF(){ var n=nivel(), sub="", body="";
+ if(n==="touros"){ sub=areaNome(state.area)+" \u2014 S\u00eamen"; body=pdfTouros(); }
+ else if(n==="materiais"){ sub="Materiais para IA"; body=pdfMateriais(); }
+ else if(n==="softwares"){ sub="Softwares"; body=pdfSoftwares(); }
+ else if(n==="busca"){ sub=areaNome(state.area)+" \u00b7 "+perfilNome(state.perfil); body=pdfProdutos(state.perfil); }
+ else return;
+ var doc='<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lista Alta</title>'+pdfCss()+'</head><body>'+
+  '<div class="noprint pdfbar"><button onclick="window.print()">⬇️ Baixar / Imprimir PDF</button></div>'+pdfHeader(sub)+'<div class="wrap">'+body+'</div>'+pdfFooter()+'</body></html>';
+ var w=window.open("","_blank"); if(!w){ alert("Permita nova aba/pop-ups para gerar o PDF."); return; }
+ w.document.open(); w.document.write(doc); w.document.close();
+ setTimeout(function(){ try{ w.focus(); w.print(); }catch(e){} }, 600); }
 function renderResultado(){
   if(nivel()!=="busca") return;
   var grupos=agrupar(itensDoPerfil(state.perfil));

@@ -143,6 +143,7 @@ button,input{font:inherit;color:inherit}
 .btn-pdf:active{background:#EAF2FB}
 .btn-promo-area{display:block;width:100%;margin:12px 0 2px;background:linear-gradient(135deg,#C2410C,#E8590C);color:#fff;border:0;border-radius:12px;min-height:48px;font-weight:800;font-size:14px;cursor:pointer}
 .btn-promo-area:active{filter:brightness(.95)}
+.btn-promo-area.btn-pdf{background:linear-gradient(135deg,var(--azul),var(--azul2))}
 .demo-banner{margin:10px 0 0;background:#FEF3E2;border:1px solid #F4C79B;color:#8A4B10;border-radius:12px;padding:10px 13px;font-size:12.5px;font-weight:700;line-height:1.4}
 .hidden{display:none!important}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
@@ -248,8 +249,8 @@ var AREAS = {
   "Leite":[
     {id:"Neonatos", desc:"Colostro, AltaLYTE, acessórios", ic:"N"},
     {id:"Alta ID e transição", desc:"Marcadores e CAL24", ic:"ID"},
-    {id:"Leite Europeu", nome:"LE", desc:"Sêmen", ic:"EU"},
-    {id:"Leite Tropical", nome:"LT", desc:"Sêmen", ic:"TR"},
+    {id:"Leite Europeu", desc:"Sêmen", ic:"EU"},
+    {id:"Leite Tropical", desc:"Sêmen", ic:"TR"},
     {id:"Materiais IA", desc:"Botijões de IA", ic:"IA"},
     {id:"Softwares", desc:"MyDC", ic:"SW"}
   ],
@@ -399,14 +400,20 @@ function render(){
   if(n==="materiais"){ renderMateriais(); return; }
   if(n==="softwares"){ renderSoftwares(); return; }
   if(n==="perfil"){
-    var np=promoGrupos().length;
-    var pb='<div class="opts" style="margin-bottom:11px"><button class="opt promo" id="btnPromo">'+
-      '<span class="ic">%</span><span class="tx"><b>Promoções</b></span><span class="go">›</span></button></div>';
+    var temPromo = promoGrupos().length>0 || promosTextoArea().length>0;
     var disp=PERFIS.filter(function(o){ return itensDoPerfil(o.id).length>0; });
-    app.innerHTML='<div class="screen"><h2>'+areaNome(state.area)+' · '+state.pasta+'</h2><p class="lead">Veja as ofertas ou escolha o tipo de cliente.</p>'+
-      pb+'<div class="opts">'+disp.map(function(o,i){return botao(o,i,true);}).join('')+'</div></div>';
-    $("btnPromo").onclick=function(){ state.promo=true; render(); };
-    ligarBotoes(disp,function(o){ state.perfil=o.id; state.q=""; state.qtd=null; render(); });
+    var cards=[];
+    if(temPromo) cards.push({id:"__promo", nome:"🔥 Promoções"});
+    disp.forEach(function(o){ cards.push(o); });
+    var pdfBtn='<button class="btn-promo-area btn-pdf" id="btnPdf">⬇️ Baixar lista completa (PDF)</button>';
+    app.innerHTML='<div class="screen"><h2>'+areaNome(state.area)+'</h2><p class="lead">Escolha o tipo de cliente ou veja as ofertas.</p>'+
+      pdfBtn+'<div class="opts">'+cards.map(function(o,i){return cardArea(o,i,true);}).join('')+'</div></div>';
+    $("btnPdf").onclick=gerarPDF;
+    $("app").querySelectorAll(".opt.areacard[data-i]").forEach(function(b){ b.onclick=function(){
+      var o=cards[Number(b.dataset.i)];
+      if(o.id==="__promo"){ state.promo=true; render(); }
+      else { state.perfil=o.id; state.q=""; state.qtd=null; render(); }
+    };});
     return;
   }
   if(n==="promocoes"){
@@ -422,7 +429,7 @@ function render(){
   app.innerHTML=
     '<div class="inputs"><input id="q" placeholder="Buscar produto ou código" autocomplete="off"/>'+
     '<input id="qtd" placeholder="Qtde" inputmode="numeric"/></div>'+
-    '<div id="hero"></div>'+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+'<div class="list" id="list"></div>';
+    '<div id="hero"></div>'+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista completa (PDF)</button>'+'<div class="list" id="list"></div>';
   $("q").value=state.q; $("qtd").value=state.qtd||"";
   { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   $("q").oninput=function(e){ state.q=e.target.value; renderResultado(); };
@@ -568,7 +575,7 @@ function renderTourosScreen(){
   var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";
   var _np=promosTextoArea().length;
   var _pb=_np?'<button class="btn-promo-area" id="btnPromoArea">🔥 Promoções da área ('+_np+')</button>':'';
-  app.innerHTML=_pb+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+
+  app.innerHTML=_pb+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista completa (PDF)</button>'+
     '<div class="tbar"><input id="tq" placeholder="Buscar touro por nome ou código" autocomplete="off"/>'+
     '<div class="chips">'+racaChips+'</div>'+
     '<div class="chips">'+flagChips+'</div>'+
@@ -698,7 +705,7 @@ function renderMateriais(){
   var app=$("app"); var arr=materiaisBase();
   var _np=promosTextoArea().length;
   var _pb=_np?'<button class="btn-promo-area" id="btnPromoAreaM">🔥 Promoções da área ('+_np+')</button>':'';
-  app.innerHTML='<div class="screen">'+_pb+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button><h2>Materiais para IA</h2><p class="lead">Botijões — ficha técnica e valores.</p><div class="list" id="mlist"></div></div>';
+  app.innerHTML='<div class="screen">'+_pb+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista completa (PDF)</button><h2>Materiais para IA</h2><p class="lead">Botijões — ficha técnica e valores.</p><div class="list" id="mlist"></div></div>';
   var _bpm=$("btnPromoAreaM"); if(_bpm) _bpm.onclick=function(){ state.promo=true; render(); };
   { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   var el=$("mlist"); arr.forEach(function(m){ el.appendChild(cardMaterial(m)); });
@@ -729,7 +736,7 @@ function cardSoftware(s){
 }
 function renderSoftwares(){
   var app=$("app"); var arr=softwaresBase();
-  app.innerHTML='<div class="screen">'+'<button class="btn-pdf" id="btnPDF">📄 Baixar lista (PDF)</button>'+'<h2>Softwares</h2><p class="lead">Planos e valores.</p><div class="list" id="swlist"></div></div>';
+  app.innerHTML='<div class="screen">'+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista completa (PDF)</button>'+'<h2>Softwares</h2><p class="lead">Planos e valores.</p><div class="list" id="swlist"></div></div>';
   { var _bpdf=$("btnPDF"); if(_bpdf) _bpdf.onclick=gerarPDF; }
   var el=$("swlist"); arr.forEach(function(s){ el.appendChild(cardSoftware(s)); });
 }
@@ -792,6 +799,7 @@ function gerarPDF(){ var n=nivel(), sub="", body="";
  else if(n==="materiais"){ sub="Materiais para IA"; body=pdfMateriais(); }
  else if(n==="softwares"){ sub="Softwares"; body=pdfSoftwares(); }
  else if(n==="busca"){ sub=areaNome(state.area)+" \u00b7 "+perfilNome(state.perfil); body=pdfProdutos(state.perfil); }
+ else if(n==="perfil"){ sub=areaNome(state.area)+" \u00b7 "+perfilNome("Produtor"); body=pdfProdutos("Produtor"); }
  else return;
  var doc='<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Lista Alta</title>'+pdfCss()+'</head><body>'+
   '<div class="noprint pdfbar"><button onclick="window.print()">⬇️ Baixar / Imprimir PDF</button></div>'+pdfHeader(sub)+'<div class="wrap">'+body+'</div>'+pdfFooter()+'</body></html>';

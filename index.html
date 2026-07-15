@@ -742,6 +742,7 @@ function effSex(t){ return t.sexProm!=null?t.sexProm:t.sexLista; }
 function temPromoTouro(t){ return t.convProm!=null||t.sexProm!=null; }
 function codigoTipo(codigo,tipo){ var s=String(codigo||''); var suf=s.length>3?s.slice(3):s; return (tipo==='Sexado'?'511':'011')+suf; }
 function bsUrl(t){ if(t.area!=="Leite Europeu") return ""; return t.codigo?("https://bullsearch.altagenetics.com/brasil/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
+/* Fotos de touros desativadas: a lista exibe todos os touros de forma uniforme, sem imagens. */
 function cardTouro(t){
   var chips=(t.chips||[]).map(function(f){return '<span class="tchip">'+esc(f)+'</span>';}).join("");
   var traits=(t.caracteristicas||[]).filter(function(x){return x[1]!=null && String(x[1]).trim()!=='';})
@@ -757,14 +758,11 @@ function cardTouro(t){
     '<div class="thead"><h3>'+esc(t.nome)+(temPromoTouro(t)?' <span class="badge">🔥 promo</span>':'')+'</h3><span class="traca">'+esc(racaLabel(t.raca))+'</span></div>'+
     '<div class="tcod">Cód. '+esc(t.codigo)+'</div>'+
     (chips?'<div class="tchips">'+chips+'</div>':'')+
-    (t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':(bsUrl(t)?'<div class="prodimg bullimg-slot" data-bullimg-slot="'+esc(t.codigo)+'"><div class="bullimg-loading">Carregando foto do BullSearch…</div></div>':''))+
     '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag,t)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag,t)+'</div>'+
     (traits?'<div class="traits">'+traits+'</div>':'')+
     geneal+
     (bsUrl(t)?'<button class="btn-bs" data-bs="'+esc(bsUrl(t))+'">Ver ficha completa (BullSearch)</button>':'')+
     '<div class="acts"><button class="btn copy">Copiar</button><button class="btn wa">WhatsApp</button></div>';
-  var tio=card.querySelector('[data-imgopen]'); if(tio) tio.onclick=function(){window.open(tio.dataset.imgopen,'_blank','noopener');};
-  var tis=card.querySelector('[data-imgshare]'); if(tis) tis.onclick=function(){shareImg(tis.dataset.imgshare);};
   card.querySelectorAll('[data-pcopy]').forEach(function(pb){ pb.onclick=function(){ copiar(pb.dataset.pcopy); }; });
   var gb=card.querySelector('[data-gen]'); if(gb) gb.onclick=function(){ var box=card.querySelector('[data-genbox]'); var op=box.style.display!=="none"; box.style.display=op?"none":"block"; gb.classList.toggle("open",!op); };
   var bs=card.querySelector('[data-bs]'); if(bs) bs.onclick=function(){ window.open(bs.dataset.bs,'_blank','noopener'); };
@@ -772,7 +770,6 @@ function cardTouro(t){
   b[0].onclick=function(){copiar(msgTouro(t));};
   b[1].onclick=function(){whats(msgTouro(t));};
   anexarSelecao(card,registroTouro(t));
-  if(!t.imagem && bsUrl(t)) card.setAttribute("data-bull-code",String(t.codigo||""));
   return card;
 }
 function renderTouros(){
@@ -781,107 +778,8 @@ function renderTouros(){
   var el=$("tlist"); if(!el)return; el.innerHTML="";
   if(!arr.length){ el.innerHTML='<div class="empty">Nenhum touro com esses filtros. Limpe a busca ou os filtros.</div>'; return; }
   arr.forEach(function(t){ el.appendChild(cardTouro(t)); });
-  observarFotosBullSearch(el);
 }
 
-/* Fotos dos touros: consulta sob demanda no BullSearch Brasil por meio do Apps Script.
-   O carregamento é progressivo para não fazer centenas de requisições de uma vez. */
-var BULL_IMG_STORAGE="alta_bullsearch_imagens_v2";
-var bullImgMem={};
-var bullImgFila={};
-var bullImgTimer=null;
-var bullImgObserver=null;
-(function(){
-  try{
-    var x=JSON.parse(localStorage.getItem(BULL_IMG_STORAGE)||"{}");
-    if(x&&typeof x==="object") bullImgMem=x;
-  }catch(e){}
-})();
-function bullCodigo(v){return String(v||"").trim().toUpperCase();}
-function bullSalvarCache(){
-  try{localStorage.setItem(BULL_IMG_STORAGE,JSON.stringify(bullImgMem));}catch(e){}
-}
-function bullCacheValido(x){
-  if(!x||!x.ts)return false;
-  var idade=Date.now()-Number(x.ts);
-  return idade<(x.url?30*86400000:24*3600000);
-}
-function observarFotosBullSearch(root){
-  var cards=root.querySelectorAll('[data-bull-code]');
-  if(!cards.length)return;
-  if("IntersectionObserver" in window){
-    if(bullImgObserver)try{bullImgObserver.disconnect();}catch(e){}
-    bullImgObserver=new IntersectionObserver(function(entries){
-      entries.forEach(function(en){
-        if(en.isIntersecting){bullImgObserver.unobserve(en.target);enfileirarFotoBull(en.target);}
-      });
-    },{rootMargin:"500px 0px"});
-    cards.forEach(function(c){bullImgObserver.observe(c);});
-  }else cards.forEach(enfileirarFotoBull);
-}
-function enfileirarFotoBull(card){
-  if(!card||!card.isConnected)return;
-  var codigo=bullCodigo(card.getAttribute("data-bull-code"));
-  if(!codigo)return;
-  var salvo=bullImgMem[codigo];
-  if(bullCacheValido(salvo)){
-    aplicarFotoBull(codigo,salvo.url||"",[card]);
-    return;
-  }
-  if(!bullImgFila[codigo])bullImgFila[codigo]=[];
-  bullImgFila[codigo].push(card);
-  if(!bullImgTimer)bullImgTimer=setTimeout(processarFilaBull,100);
-}
-function processarFilaBull(){
-  bullImgTimer=null;
-  var codigos=Object.keys(bullImgFila).slice(0,10);
-  if(!codigos.length)return;
-  var destinos={};
-  codigos.forEach(function(c){destinos[c]=bullImgFila[c]||[];delete bullImgFila[c];});
-  if(Object.keys(bullImgFila).length)bullImgTimer=setTimeout(processarFilaBull,250);
-  var cb="__bullImg_"+Date.now()+"_"+Math.floor(Math.random()*100000);
-  var s=document.createElement("script"),finalizado=false;
-  function limpar(){try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
-  window[cb]=function(resp){
-    if(finalizado)return;finalizado=true;
-    var mapa=(resp&&resp.bullsearch)||{};
-    codigos.forEach(function(c){
-      var item=mapa[c]||mapa[bullCodigo(c)]||{};
-      var url=String(item.imagem||"");
-      bullImgMem[c]={url:url,ts:Date.now()};
-      aplicarFotoBull(c,url,destinos[c]);
-    });
-    bullSalvarCache();limpar();
-  };
-  var sep=CONFIG.URL.indexOf("?")>=0?"&":"?";
-  s.src=CONFIG.URL+sep+"action=bullsearch-images&codes="+encodeURIComponent(codigos.join(","))+"&callback="+encodeURIComponent(cb);
-  s.onerror=function(){if(finalizado)return;finalizado=true;codigos.forEach(function(c){aplicarFotoBull(c,"",destinos[c]);});limpar();};
-  document.body.appendChild(s);
-  setTimeout(function(){if(finalizado)return;finalizado=true;codigos.forEach(function(c){aplicarFotoBull(c,"",destinos[c]);});limpar();},15000);
-}
-function aplicarFotoBull(codigo,url,cards){
-  codigo=bullCodigo(codigo);url=String(url||"");
-  (DADOS.touros||[]).forEach(function(t){if(bullCodigo(t.codigo)===codigo&&url)t.imagem=url;});
-  (cards||[]).forEach(function(card){
-    if(!card||!card.isConnected)return;
-    var slot=card.querySelector('[data-bullimg-slot]');
-    if(!slot)return;
-    if(!url){slot.style.display="none";card.removeAttribute("data-bull-code");return;}
-    slot.innerHTML='<img src="'+esc(url)+'" alt="" loading="lazy" data-imgopen="'+esc(url)+'"/><button class="btn-img" data-imgshare="'+esc(url)+'">Baixar / enviar foto</button>';
-    var im=slot.querySelector("img");
-    im.onerror=function(){slot.style.display="none";};
-    im.onclick=function(){window.open(url,"_blank","noopener");};
-    var sh=slot.querySelector('[data-imgshare]');if(sh)sh.onclick=function(){shareImg(url);};
-    card.removeAttribute("data-bull-code");
-  });
-  if(url&&typeof proposta!=="undefined"&&proposta&&Array.isArray(proposta.itens)){
-    var mudou=false;
-    proposta.itens.forEach(function(r){
-      if(r&&r.tipo==="touro"&&r.data&&bullCodigo(r.data.codigo)===codigo){r.imagem=url;r.data.imagem=url;mudou=true;}
-    });
-    if(mudou&&typeof salvarProposta==="function")salvarProposta();
-  }
-}
 function racaLabel(r){ return r==="QL"?"Gir Leiteiro":r; }
 function fmtAtualizado(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return "—"; var p=function(n){return (n<10?"0":"")+n;}; return p(d.getDate())+"/"+p(d.getMonth()+1)+" às "+p(d.getHours())+":"+p(d.getMinutes()); }catch(e){ return "—"; } }
 function precoTxt(lista,prom){
@@ -1159,7 +1057,7 @@ function hashTexto(s){var h=2166136261,t=String(s||"");for(var i=0;i<t.length;i+
 function idParte(s){return String(s==null?"":s).trim().replace(/\|/g,"-");}
 function rotuloTipoProposta(tipo){var m={produto:"Produto",touro:"Touro",botijao:"Botijão",acessorio:"Acessório",software:"Software",promocao:"Promoção"};return m[tipo]||"Item";}
 function registroProduto(g){var x=g&&g[0]?g[0]:{};return {id:"produto|"+idParte(x.linha)+"|"+idParte(x.area)+"|"+idParte(x.perfil)+"|"+idParte(x.codigo),tipo:"produto",titulo:x.produto||"Produto",subtitulo:[x.codigo,x.apresentacao,x.perfil].filter(Boolean).join(" · "),imagem:x.imagem||"",data:cloneSeguro(g),nota:""};}
-function registroTouro(t){return {id:"touro|"+idParte(t.linha)+"|"+idParte(t.area)+"|"+idParte(t.codigo),tipo:"touro",titulo:t.nome||"Touro",subtitulo:[t.codigo,racaLabel(t.raca)].filter(Boolean).join(" · "),imagem:t.imagem||"",data:cloneSeguro(t),nota:""};}
+function registroTouro(t){var d=cloneSeguro(t);if(d)d.imagem="";return {id:"touro|"+idParte(t.linha)+"|"+idParte(t.area)+"|"+idParte(t.codigo),tipo:"touro",titulo:t.nome||"Touro",subtitulo:[t.codigo,racaLabel(t.raca)].filter(Boolean).join(" · "),imagem:"",data:d,nota:""};}
 function registroMaterial(m){return {id:"botijao|"+idParte(m.codigo),tipo:"botijao",titulo:m.nome||"Botijão",subtitulo:"Cód. "+(m.codigo||""),imagem:m.imagem||"",data:cloneSeguro(m),nota:""};}
 function registroAcessorio(a){return {id:"acessorio|"+idParte(a.codigo),tipo:"acessorio",titulo:a.nome||"Acessório",subtitulo:[a.codigo,a.marca,a.apresentacao].filter(Boolean).join(" · "),imagem:a.imagem||"",data:cloneSeguro(a),nota:""};}
 function registroSoftware(s){return {id:"software|"+idParte(s.codigo||s.nome),tipo:"software",titulo:s.nome||"Software",subtitulo:s.descricao||"",imagem:s.imagem||"",data:cloneSeguro(s),nota:""};}
@@ -1184,7 +1082,7 @@ function nl2br(s){return esc(s||'').replace(/\n/g,'<br>');}
 function pdfPrecoFaixa(x){if(x.emPromo)return '<s>'+brl(x.precoPublicado)+'</s> <b>'+brl(x.precoVigente)+'</b>';return '<b>'+brl(x.precoVigente)+'</b>';}
 function pdfItemProposta(r){var d=r.data||{},precos=proposta.meta.mostrarPrecos!==false,corpo='',sub=r.subtitulo||'';
  if(r.tipo==='produto'){var g=Array.isArray(d)?d:[],x=g[0]||{};corpo=imgPdf(x.imagem,x.produto);if(precos)corpo+='<table><thead><tr><th>Condição</th><th class="r">Preço</th></tr></thead><tbody>'+g.map(function(f){return '<tr><td>'+esc(rotulo(f))+'</td><td class="r">'+pdfPrecoFaixa(f)+'</td></tr>';}).join('')+'</tbody></table>';if(x.ipi)corpo+='<p class="pdfnote">Preço final já com IPI de '+pct(x.ipi)+' incluído.</p>';if(x.obs)corpo+='<p>'+esc(x.obs)+'</p>';}
- else if(r.tipo==='touro'){var t=d;corpo=imgPdf(t.imagem,t.nome);if(t.chips&&t.chips.length)corpo+='<div class="pdfchips">'+t.chips.map(function(c){return '<span>'+esc(c)+'</span>';}).join('')+'</div>';if(precos)corpo+='<table><thead><tr><th>Tipo</th><th class="r">Preço</th></tr></thead><tbody><tr><td>Convencional</td><td class="r">'+pdfPreco(t.convLista,(t.convProm!=null?t.convProm:t.convLista),t.convProm!=null)+'</td></tr><tr><td>Sexado</td><td class="r">'+pdfPreco(t.sexLista,(t.sexProm!=null?t.sexProm:t.sexLista),t.sexProm!=null)+'</td></tr></tbody></table>';var tr=(t.caracteristicas||[]).filter(function(z){return z[1]!=null&&String(z[1]).trim()!=='';});if(tr.length)corpo+='<div class="pdftraits">'+tr.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtTrait(z[1]))+'</span>';}).join('')+'</div>';if(t.genealogia){var gl=[];if(t.genealogia.pai)gl.push('<b>Pai:</b> '+esc(t.genealogia.pai));if(t.genealogia.mae)gl.push('<b>Mãe:</b> '+esc(t.genealogia.mae));if(t.genealogia.avo)gl.push('<b>Avô materno:</b> '+esc(t.genealogia.avo));if(gl.length)corpo+='<p>'+gl.join('<br>')+'</p>';}var u=bsUrl(t);if(u)corpo+='<p class="pdflink">Ficha completa: '+esc(u)+'</p>';}
+ else if(r.tipo==='touro'){var t=d;corpo='';if(t.chips&&t.chips.length)corpo+='<div class="pdfchips">'+t.chips.map(function(c){return '<span>'+esc(c)+'</span>';}).join('')+'</div>';if(precos)corpo+='<table><thead><tr><th>Tipo</th><th class="r">Preço</th></tr></thead><tbody><tr><td>Convencional</td><td class="r">'+pdfPreco(t.convLista,(t.convProm!=null?t.convProm:t.convLista),t.convProm!=null)+'</td></tr><tr><td>Sexado</td><td class="r">'+pdfPreco(t.sexLista,(t.sexProm!=null?t.sexProm:t.sexLista),t.sexProm!=null)+'</td></tr></tbody></table>';var tr=(t.caracteristicas||[]).filter(function(z){return z[1]!=null&&String(z[1]).trim()!=='';});if(tr.length)corpo+='<div class="pdftraits">'+tr.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtTrait(z[1]))+'</span>';}).join('')+'</div>';if(t.genealogia){var gl=[];if(t.genealogia.pai)gl.push('<b>Pai:</b> '+esc(t.genealogia.pai));if(t.genealogia.mae)gl.push('<b>Mãe:</b> '+esc(t.genealogia.mae));if(t.genealogia.avo)gl.push('<b>Avô materno:</b> '+esc(t.genealogia.avo));if(gl.length)corpo+='<p>'+gl.join('<br>')+'</p>';}var u=bsUrl(t);if(u)corpo+='<p class="pdflink">Ficha completa: '+esc(u)+'</p>';}
  else if(r.tipo==='botijao'){var m=d;corpo=imgPdf(m.imagem,m.nome);if(precos)corpo+='<table><thead><tr><th>Condição</th><th class="r">Preço</th></tr></thead><tbody><tr><td>Vazio (com ICMS)</td><td class="r">'+brl(m.precoVazio)+'</td></tr><tr><td>Com R$ 500 em sêmen + N²</td><td class="r">'+brl(m.precoSemen)+'</td></tr></tbody></table>';if(m.specs&&m.specs.length)corpo+='<div class="pdftraits">'+m.specs.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtNum(z[1]))+'</span>';}).join('')+'</div>';}
  else if(r.tipo==='acessorio'){var a=d;corpo=imgPdf(a.imagem,a.nome);if(precos)corpo+='<div class="pdfbigprice">'+brl(a.precoFinal)+'</div>';if(a.ipi)corpo+='<p class="pdfnote">Preço final já com IPI de '+ipiPct(a.ipi)+' incluído.</p>';}
  else if(r.tipo==='software'){var s=d;if(precos)corpo+='<table><thead><tr><th>Plano</th><th class="r">Normal</th><th class="r">Cliente</th></tr></thead><tbody>'+(s.planos||[]).map(function(p){return '<tr><td>'+esc(p.categoria)+'</td><td class="r">'+brl(p.normal)+esc(p.unidade||'')+'</td><td class="r">'+brl(p.cliente)+esc(p.unidade||'')+'</td></tr>';}).join('')+'</tbody></table>';if(s.obs)corpo+='<p class="pdfnote">'+esc(s.obs)+'</p>';}

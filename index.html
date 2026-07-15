@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Alta · Lista de Preços</title>
-<meta name="app-build" content="2026-07-14-imagens-lista-unica"/>
+<meta name="app-build" content="2026-07-15-proposta-imagens-persistentes"/>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="Alta · Lista de Preços"/>
@@ -134,6 +134,7 @@ button,input{font:inherit;color:inherit}
 .empty{text-align:center;color:var(--muted);padding:40px 20px;font-size:14px}
 .prodimg{margin-top:11px;text-align:center}
 .prodimg img{max-width:100%;max-height:170px;border-radius:12px;border:1px solid var(--linha);background:#fff;object-fit:contain;cursor:pointer}
+.bullimg-loading{min-height:118px;display:flex;align-items:center;justify-content:center;border:1px dashed #CFE0F5;border-radius:12px;background:#F7FAFE;color:var(--muted);font-size:12px;font-weight:700}
 .btn-img{display:block;width:100%;margin-top:8px;background:#EAF2FB;color:var(--azul);border:1px solid #CFE0F5;border-radius:12px;min-height:42px;font-weight:800;font-size:13px;cursor:pointer}
 
 .foot{text-align:center;color:#9AABC0;font-size:11px;margin-top:22px;line-height:1.5}
@@ -368,6 +369,41 @@ function rotulo(it){ if(it.tipo==="Acessório") return "unidade"; var f=String(i
 
 /* ---------- fonte de dados ---------- */
 function fonte(vivo,txt){ $("dot").className="dot"+(vivo?"":" demo"); $("srcTxt").textContent=txt; var bn=$("demoBanner"); if(bn) bn.classList.toggle("hidden", !!vivo); }
+
+/* Mantém as imagens da base interna quando a resposta ao vivo vier sem foto.
+   Os demais dados (preços, estoque, características etc.) continuam sendo os dados ao vivo. */
+function preservarImagensBase(d){
+  if(!d || !EMBEDDED) return d;
+
+  function chave(v){
+    return String(v==null?"":v).trim().toUpperCase().replace(/\s+/g,"");
+  }
+
+  function completar(destino, origem, campos){
+    var mapa={};
+    (origem||[]).forEach(function(x){
+      if(!x || !x.imagem) return;
+      campos.forEach(function(c){
+        var k=chave(x[c]);
+        if(k && !mapa[c+"|"+k]) mapa[c+"|"+k]=x.imagem;
+      });
+    });
+    (destino||[]).forEach(function(x){
+      if(!x || x.imagem) return;
+      for(var i=0;i<campos.length;i++){
+        var c=campos[i], k=chave(x[c]);
+        if(k && mapa[c+"|"+k]){ x.imagem=mapa[c+"|"+k]; break; }
+      }
+    });
+  }
+
+  completar(d.touros, EMBEDDED.touros, ["codigo","nome"]);
+  completar(d.itens, EMBEDDED.itens, ["codigo","produto"]);
+  completar(d.materiais, EMBEDDED.materiais, ["codigo","nome"]);
+  completar(d.materiaisAcess, EMBEDDED.materiaisAcess, ["codigo","nome"]);
+  return d;
+}
+
 function carregar(){
   if(!CONFIG.URL || CONFIG.URL.indexOf("http")!==0){ fonte(false,"Modo demonstração — dados de exemplo"); gate(); return; }
   fonte(true,"Conectando…");
@@ -375,7 +411,7 @@ function carregar(){
   var limpar=function(s){ try{delete window[cb];}catch(e){window[cb]=undefined;} if(s&&s.parentNode)s.parentNode.removeChild(s); };
   window[cb]=function(d){
     done=true;
-    if(d&&d.itens&&d.itens.length){ DADOS=d;
+    if(d&&d.itens&&d.itens.length){ DADOS=preservarImagensBase(d);
       var ex=d.bloqueadosPorDivergencia?(" · "+d.bloqueadosPorDivergencia+" bloqueado(s)"):"";
       fonte(true,"Atualizado "+fmtAtualizado(d.atualizadoEm)+ex);
     } else fonte(false,"Sem itens — usando exemplos");
@@ -705,7 +741,7 @@ function effConv(t){ return t.convProm!=null?t.convProm:t.convLista; }
 function effSex(t){ return t.sexProm!=null?t.sexProm:t.sexLista; }
 function temPromoTouro(t){ return t.convProm!=null||t.sexProm!=null; }
 function codigoTipo(codigo,tipo){ var s=String(codigo||''); var suf=s.length>3?s.slice(3):s; return (tipo==='Sexado'?'511':'011')+suf; }
-function bsUrl(t){ if(t.area!=="Leite Europeu") return ""; return t.codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
+function bsUrl(t){ if(t.area!=="Leite Europeu") return ""; return t.codigo?("https://bullsearch.altagenetics.com/brasil/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
 function cardTouro(t){
   var chips=(t.chips||[]).map(function(f){return '<span class="tchip">'+esc(f)+'</span>';}).join("");
   var traits=(t.caracteristicas||[]).filter(function(x){return x[1]!=null && String(x[1]).trim()!=='';})
@@ -721,7 +757,7 @@ function cardTouro(t){
     '<div class="thead"><h3>'+esc(t.nome)+(temPromoTouro(t)?' <span class="badge">🔥 promo</span>':'')+'</h3><span class="traca">'+esc(racaLabel(t.raca))+'</span></div>'+
     '<div class="tcod">Cód. '+esc(t.codigo)+'</div>'+
     (chips?'<div class="tchips">'+chips+'</div>':'')+
-    (t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':'')+
+    (t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':(bsUrl(t)?'<div class="prodimg bullimg-slot" data-bullimg-slot="'+esc(t.codigo)+'"><div class="bullimg-loading">Carregando foto do BullSearch…</div></div>':''))+
     '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag,t)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag,t)+'</div>'+
     (traits?'<div class="traits">'+traits+'</div>':'')+
     geneal+
@@ -736,6 +772,7 @@ function cardTouro(t){
   b[0].onclick=function(){copiar(msgTouro(t));};
   b[1].onclick=function(){whats(msgTouro(t));};
   anexarSelecao(card,registroTouro(t));
+  if(!t.imagem && bsUrl(t)) card.setAttribute("data-bull-code",String(t.codigo||""));
   return card;
 }
 function renderTouros(){
@@ -744,6 +781,106 @@ function renderTouros(){
   var el=$("tlist"); if(!el)return; el.innerHTML="";
   if(!arr.length){ el.innerHTML='<div class="empty">Nenhum touro com esses filtros. Limpe a busca ou os filtros.</div>'; return; }
   arr.forEach(function(t){ el.appendChild(cardTouro(t)); });
+  observarFotosBullSearch(el);
+}
+
+/* Fotos dos touros: consulta sob demanda no BullSearch Brasil por meio do Apps Script.
+   O carregamento é progressivo para não fazer centenas de requisições de uma vez. */
+var BULL_IMG_STORAGE="alta_bullsearch_imagens_v2";
+var bullImgMem={};
+var bullImgFila={};
+var bullImgTimer=null;
+var bullImgObserver=null;
+(function(){
+  try{
+    var x=JSON.parse(localStorage.getItem(BULL_IMG_STORAGE)||"{}");
+    if(x&&typeof x==="object") bullImgMem=x;
+  }catch(e){}
+})();
+function bullCodigo(v){return String(v||"").trim().toUpperCase();}
+function bullSalvarCache(){
+  try{localStorage.setItem(BULL_IMG_STORAGE,JSON.stringify(bullImgMem));}catch(e){}
+}
+function bullCacheValido(x){
+  if(!x||!x.ts)return false;
+  var idade=Date.now()-Number(x.ts);
+  return idade<(x.url?30*86400000:24*3600000);
+}
+function observarFotosBullSearch(root){
+  var cards=root.querySelectorAll('[data-bull-code]');
+  if(!cards.length)return;
+  if("IntersectionObserver" in window){
+    if(bullImgObserver)try{bullImgObserver.disconnect();}catch(e){}
+    bullImgObserver=new IntersectionObserver(function(entries){
+      entries.forEach(function(en){
+        if(en.isIntersecting){bullImgObserver.unobserve(en.target);enfileirarFotoBull(en.target);}
+      });
+    },{rootMargin:"500px 0px"});
+    cards.forEach(function(c){bullImgObserver.observe(c);});
+  }else cards.forEach(enfileirarFotoBull);
+}
+function enfileirarFotoBull(card){
+  if(!card||!card.isConnected)return;
+  var codigo=bullCodigo(card.getAttribute("data-bull-code"));
+  if(!codigo)return;
+  var salvo=bullImgMem[codigo];
+  if(bullCacheValido(salvo)){
+    aplicarFotoBull(codigo,salvo.url||"",[card]);
+    return;
+  }
+  if(!bullImgFila[codigo])bullImgFila[codigo]=[];
+  bullImgFila[codigo].push(card);
+  if(!bullImgTimer)bullImgTimer=setTimeout(processarFilaBull,100);
+}
+function processarFilaBull(){
+  bullImgTimer=null;
+  var codigos=Object.keys(bullImgFila).slice(0,10);
+  if(!codigos.length)return;
+  var destinos={};
+  codigos.forEach(function(c){destinos[c]=bullImgFila[c]||[];delete bullImgFila[c];});
+  if(Object.keys(bullImgFila).length)bullImgTimer=setTimeout(processarFilaBull,250);
+  var cb="__bullImg_"+Date.now()+"_"+Math.floor(Math.random()*100000);
+  var s=document.createElement("script"),finalizado=false;
+  function limpar(){try{delete window[cb];}catch(e){window[cb]=undefined;}if(s.parentNode)s.parentNode.removeChild(s);}
+  window[cb]=function(resp){
+    if(finalizado)return;finalizado=true;
+    var mapa=(resp&&resp.bullsearch)||{};
+    codigos.forEach(function(c){
+      var item=mapa[c]||mapa[bullCodigo(c)]||{};
+      var url=String(item.imagem||"");
+      bullImgMem[c]={url:url,ts:Date.now()};
+      aplicarFotoBull(c,url,destinos[c]);
+    });
+    bullSalvarCache();limpar();
+  };
+  var sep=CONFIG.URL.indexOf("?")>=0?"&":"?";
+  s.src=CONFIG.URL+sep+"action=bullsearch-images&codes="+encodeURIComponent(codigos.join(","))+"&callback="+encodeURIComponent(cb);
+  s.onerror=function(){if(finalizado)return;finalizado=true;codigos.forEach(function(c){aplicarFotoBull(c,"",destinos[c]);});limpar();};
+  document.body.appendChild(s);
+  setTimeout(function(){if(finalizado)return;finalizado=true;codigos.forEach(function(c){aplicarFotoBull(c,"",destinos[c]);});limpar();},15000);
+}
+function aplicarFotoBull(codigo,url,cards){
+  codigo=bullCodigo(codigo);url=String(url||"");
+  (DADOS.touros||[]).forEach(function(t){if(bullCodigo(t.codigo)===codigo&&url)t.imagem=url;});
+  (cards||[]).forEach(function(card){
+    if(!card||!card.isConnected)return;
+    var slot=card.querySelector('[data-bullimg-slot]');
+    if(!slot)return;
+    if(!url){slot.style.display="none";card.removeAttribute("data-bull-code");return;}
+    slot.innerHTML='<img src="'+esc(url)+'" alt="" loading="lazy" data-imgopen="'+esc(url)+'"/><button class="btn-img" data-imgshare="'+esc(url)+'">Baixar / enviar foto</button>';
+    var im=slot.querySelector("img");
+    im.onerror=function(){slot.style.display="none";};
+    im.onclick=function(){window.open(url,"_blank","noopener");};
+    var sh=slot.querySelector('[data-imgshare]');if(sh)sh.onclick=function(){shareImg(url);};
+    card.removeAttribute("data-bull-code");
+  });
+  if(url&&typeof proposta!=="undefined"&&proposta&&Array.isArray(proposta.itens)){
+    var mudou=false;
+    proposta.itens.forEach(function(r){
+      if(r&&r.tipo==="touro"&&r.data&&bullCodigo(r.data.codigo)===codigo){r.imagem=url;r.data.imagem=url;mudou=true;}
+    });
+    if(mudou&&typeof salvarProposta==="function")salvarProposta();
+  }
 }
 function racaLabel(r){ return r==="QL"?"Gir Leiteiro":r; }
 function fmtAtualizado(iso){ try{ var d=new Date(iso); if(isNaN(d.getTime())) return "—"; var p=function(n){return (n<10?"0":"")+n;}; return p(d.getDate())+"/"+p(d.getMonth()+1)+" às "+p(d.getHours())+":"+p(d.getMinutes()); }catch(e){ return "—"; } }

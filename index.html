@@ -760,7 +760,7 @@ function cardTouro(t){
     '<div class="thead"><h3>'+esc(t.nome)+(temPromoTouro(t)?' <span class="badge">🔥 promo</span>':'')+'</h3><span class="traca">'+esc(racaLabel(t.raca))+'</span></div>'+
     '<div class="tcod">Cód. '+esc(t.codigo)+'</div>'+
     (chips?'<div class="tchips">'+chips+'</div>':'')+
-    (t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':(bsUrl(t)?'<div class="prodimg bullimg-slot" data-bullimg-slot="'+esc(t.codigo)+'"><div class="bullimg-loading">Carregando foto do BullSearch…</div></div>':''))+
+    (bsUrl(t)?'<div class="prodimg bullimg-slot" data-bullimg-slot="'+esc(t.codigo)+'"><div class="bullimg-loading">Carregando foto do BullSearch…</div></div>':(t.imagem?'<div class="prodimg"><img src="'+esc(t.imagem)+'" alt="" loading="lazy" onerror="this.closest(\'.prodimg\').style.display=\'none\'" data-imgopen="'+esc(t.imagem)+'"/><button class="btn-img" data-imgshare="'+esc(t.imagem)+'">Baixar / enviar foto</button></div>':''))+
     '<div class="precos">'+precoBloco("Convencional",t.convLista,t.convProm,t.convFlag,t)+precoBloco("Sexado",t.sexLista,t.sexProm,t.sexFlag,t)+'</div>'+
     (traits?'<div class="traits">'+traits+'</div>':'')+
     geneal+
@@ -775,7 +775,7 @@ function cardTouro(t){
   b[0].onclick=function(){copiar(msgTouro(t));};
   b[1].onclick=function(){whats(msgTouro(t));};
   anexarSelecao(card,registroTouro(t));
-  if(!t.imagem && bsUrl(t)) card.setAttribute("data-bull-code",String(t.codigo||""));
+  if(bsUrl(t)) card.setAttribute("data-bull-code",String(t.codigo||""));
   return card;
 }
 function renderTouros(){
@@ -789,13 +789,14 @@ function renderTouros(){
 
 /* Fotos dos touros: consulta sob demanda no BullSearch Brasil por meio do Apps Script.
    O carregamento é progressivo para não fazer centenas de requisições de uma vez. */
-var BULL_IMG_STORAGE="alta_bullsearch_imagens_v5";
+var BULL_IMG_STORAGE="alta_bullsearch_imagens_v6";
 var bullImgMem={};
 var bullImgFila={};
 var bullImgTimer=null;
 var bullImgObserver=null;
 (function(){
   try{
+    ["alta_bullsearch_imagens_v3","alta_bullsearch_imagens_v4","alta_bullsearch_imagens_v5"].forEach(function(k){localStorage.removeItem(k);});
     var x=JSON.parse(localStorage.getItem(BULL_IMG_STORAGE)||"{}");
     if(x&&typeof x==="object") bullImgMem=x;
   }catch(e){}

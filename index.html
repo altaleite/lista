@@ -863,20 +863,34 @@ function processarFilaBull(){
   document.body.appendChild(s);
   setTimeout(function(){if(finalizado)return;finalizado=true;codigos.forEach(function(c){aplicarFotoBull(c,"",destinos[c]);});limpar();},15000);
 }
+var BULL_IMG_FALLBACK_CLIENTE="https://bullsearch.altagenetics.com/Content/BullSearch/Images/NoImageAvailable_202109/NoImageAvailable.jpg";
 function aplicarFotoBull(codigo,url,cards){
-  codigo=bullCodigo(codigo);url=String(url||"");
+  codigo=bullCodigo(codigo);url=String(url||"").trim();
+  if(!url) url=BULL_IMG_FALLBACK_CLIENTE;
   var indisponivel=/NoImageAvailable/i.test(url);
   (DADOS.touros||[]).forEach(function(t){if(bullCodigo(t.codigo)===codigo&&url){t.imagem=url;t.fotoIndisponivel=indisponivel;}});
   (cards||[]).forEach(function(card){
     if(!card||!card.isConnected)return;
     var slot=card.querySelector('[data-bullimg-slot]');
     if(!slot)return;
-    if(!url){slot.style.display="none";card.removeAttribute("data-bull-code");return;}
+    slot.style.display="";
     slot.classList.toggle("sem-foto",indisponivel);
     slot.innerHTML='<img src="'+esc(url)+'" alt="" loading="lazy" data-imgopen="'+esc(url)+'"/>'+
       (indisponivel?'<div class="bullimg-indisponivel">📷 Foto indisponível</div>':'<button class="btn-img" data-imgshare="'+esc(url)+'">Baixar / enviar foto</button>');
     var im=slot.querySelector("img");
-    im.onerror=function(){slot.style.display="none";};
+    im.onerror=function(){
+      if(im.src!==BULL_IMG_FALLBACK_CLIENTE){
+        url=BULL_IMG_FALLBACK_CLIENTE;
+        indisponivel=true;
+        slot.classList.add("sem-foto");
+        im.src=BULL_IMG_FALLBACK_CLIENTE;
+        var bot=slot.querySelector("[data-imgshare]");if(bot)bot.remove();
+        if(!slot.querySelector(".bullimg-indisponivel")){var aviso=document.createElement("div");aviso.className="bullimg-indisponivel";aviso.textContent="📷 Foto indisponível";slot.appendChild(aviso);}
+      }else{
+        im.style.display="none";
+        if(!slot.querySelector(".bullimg-indisponivel")){var aviso2=document.createElement("div");aviso2.className="bullimg-indisponivel";aviso2.textContent="📷 Foto indisponível";slot.appendChild(aviso2);}
+      }
+    };
     im.onclick=function(){window.open(url,"_blank","noopener");};
     var sh=slot.querySelector('[data-imgshare]');if(sh)sh.onclick=function(){shareImg(url);};
     card.removeAttribute("data-bull-code");

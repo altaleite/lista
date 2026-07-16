@@ -744,7 +744,18 @@ function effConv(t){ return t.convProm!=null?t.convProm:t.convLista; }
 function effSex(t){ return t.sexProm!=null?t.sexProm:t.sexLista; }
 function temPromoTouro(t){ return t.convProm!=null||t.sexProm!=null; }
 function codigoTipo(codigo,tipo){ var s=String(codigo||''); var suf=s.length>3?s.slice(3):s; return (tipo==='Sexado'?'511':'011')+suf; }
-function bsUrl(t){ if(t.area!=="Leite Europeu") return ""; return t.codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(String(t.codigo).trim())):""; }
+function bullCodigoFicha(v){
+  var s=String(v||"").trim().toUpperCase();
+  // Códigos 511 identificam a apresentação sexada na base comercial,
+  // mas a ficha do animal no BullSearch usa o código-base 011.
+  if(/^511[A-Z]{2}/.test(s)) s="011"+s.slice(3);
+  return s;
+}
+function bsUrl(t){
+  if(t.area!=="Leite Europeu") return "";
+  var codigo=bullCodigoFicha(t.codigo);
+  return codigo?("https://bullsearch.altagenetics.com/us/BS/Bull/"+encodeURIComponent(codigo)):"";
+}
 function cardTouro(t){
   var chips=(t.chips||[]).map(function(f){return '<span class="tchip">'+esc(f)+'</span>';}).join("");
   var traits=(t.caracteristicas||[]).filter(function(x){return x[1]!=null && String(x[1]).trim()!=='';})
@@ -789,19 +800,21 @@ function renderTouros(){
 
 /* Fotos dos touros: consulta sob demanda no BullSearch Brasil por meio do Apps Script.
    O carregamento é progressivo para não fazer centenas de requisições de uma vez. */
-var BULL_IMG_STORAGE="alta_bullsearch_imagens_v6";
+var BULL_IMG_STORAGE="alta_bullsearch_imagens_v8";
 var bullImgMem={};
 var bullImgFila={};
 var bullImgTimer=null;
 var bullImgObserver=null;
 (function(){
   try{
-    ["alta_bullsearch_imagens_v3","alta_bullsearch_imagens_v4","alta_bullsearch_imagens_v5"].forEach(function(k){localStorage.removeItem(k);});
+    ["alta_bullsearch_imagens_v3","alta_bullsearch_imagens_v4","alta_bullsearch_imagens_v5","alta_bullsearch_imagens_v6","alta_bullsearch_imagens_v7"].forEach(function(k){localStorage.removeItem(k);});
     var x=JSON.parse(localStorage.getItem(BULL_IMG_STORAGE)||"{}");
     if(x&&typeof x==="object") bullImgMem=x;
   }catch(e){}
 })();
-function bullCodigo(v){return String(v||"").trim().toUpperCase();}
+function bullCodigo(v){
+  return bullCodigoFicha(v);
+}
 function bullSalvarCache(){
   try{localStorage.setItem(BULL_IMG_STORAGE,JSON.stringify(bullImgMem));}catch(e){}
 }

@@ -4,7 +4,7 @@
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
 <title>Alta · Lista de Preços</title>
-<meta name="app-build" content="2026-07-17-v8-situacoes-comerciais"/>
+<meta name="app-build" content="2026-07-20-v8.2-europeu-combo"/>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="Alta · Lista de Preços"/>
@@ -212,6 +212,13 @@ button,input{font:inherit;color:inherit}
 .sobconsulta{font-size:13px;color:var(--muted);font-style:italic;font-weight:600}
 .estoque{font-size:10.5px;color:var(--promo);font-weight:700;margin-top:4px}
 .pmin{font-size:10.5px;color:var(--muted);font-weight:700;margin-top:4px}
+.promo-hint{margin:10px 0 2px;background:linear-gradient(180deg,#FFF7F0,#FFFFFF);border:1px solid #F4C79B;border-left:5px solid var(--promo);border-radius:12px;padding:11px 13px;color:#7C2D12;font-size:12.5px;font-weight:700;line-height:1.4}
+.promo-regra{margin-top:9px;padding:9px 10px;background:#FFF7F0;border:1px solid #FED7AA;border-radius:10px;color:#7C2D12}
+.promo-regra-tt{font-size:10.5px;font-weight:900;text-transform:uppercase;letter-spacing:.035em}
+.promo-regra-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 9px;margin-top:6px;font-size:10.8px;line-height:1.3}
+.promo-regra-grid b{color:#9A3412}
+.promo-regra-meta{margin-top:6px;padding-top:6px;border-top:1px dashed #FDBA74;font-size:10px;line-height:1.35}
+.combo-promo{margin:10px 0 0;padding:11px 12px;border-radius:12px;background:linear-gradient(135deg,#FFF7CC,#FFFDF2);border:1px solid #FACC15;border-left:5px solid #EAB308;color:#713F12}.combo-promo-title{font-size:11px;font-weight:950;text-transform:uppercase;letter-spacing:.035em}.combo-promo-desc{margin-top:5px;font-size:11.5px;line-height:1.4;font-weight:700}.combo-promo-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;margin-top:7px;font-size:10.8px;line-height:1.3}.combo-promo-grid b{color:#854D0E}.combo-promo-meta{margin-top:7px;padding-top:6px;border-top:1px dashed #EAB308;font-size:10px;line-height:1.35}
 .descoff{display:inline-block;background:#E8590C;color:#fff;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;vertical-align:middle;letter-spacing:.02em}
 .fichatitulo{font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);font-weight:800;margin-top:13px}
 .acess-preco{font-size:22px;font-weight:800;color:var(--azul);margin-top:9px}
@@ -359,7 +366,7 @@ var EMBEDDED = {
   atualizadoEm: "indisponivel",
   total: 0,
   bloqueadosPorDivergencia: 0,
-  itens: [], promocoesTexto: [], touros: [], materiais: [], materiaisAcess: [], softwares: [],
+  itens: [], promocoesTexto: [], promocoesCombinadas: [], touros: [], materiais: [], materiaisAcess: [], softwares: [],
   config: {}
 };
 
@@ -761,7 +768,8 @@ function renderTourosScreen(){
   var prova=(DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";
   var _np=promosTextoArea().length;
   var _pb=_np?'<button class="btn-promo-area" id="btnPromoArea">🔥 Promoções da área ('+_np+')</button>':'';
-  app.innerHTML=_pb+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista (PDF)</button>'+
+  var _hint=(state.area==="Leite Tropical"&&_b.some(function(t){return temPromoTouro(t);}))?'<div class="promo-hint">🔥 <b>Promoções aparecem na busca normal.</b><br>Nos touros elegíveis, confira o pacote mínimo, o total e a economia diretamente no cartão.</div>':'';
+  app.innerHTML=_pb+_hint+'<button class="btn-pdf" id="btnPDF">⬇️ Baixar lista (PDF)</button>'+
     '<div class="tbar"><input id="tq" placeholder="Buscar touro por nome ou código" autocomplete="off"/>'+
     '<div class="chips">'+racaChips+'</div>'+
     '<div class="chips">'+flagChips+'</div>'+
@@ -801,7 +809,56 @@ function modalidadeTouro(t,rot){
   var flag=sex?t.sexFlag:t.convFlag,sit=normalizarSituacao(sex?t.sexSituacao:t.convSituacao,flag,lista);
   if(vigente==null||vigente==="")vigente=prom!=null?prom:lista;
   if(emPromo==null)emPromo=prom!=null;
-  return {rot:rot,lista:lista,prom:prom,vigente:vigente,emPromo:!!emPromo,flag:flag,situacao:sit,codigo:sex?(t.codigoSex||codigoTipo(t.codigoBase||t.codigo,rot)):(t.codigoConv||t.codigoBase||t.codigo)};
+  var qtd=sex?t.sexQtdMinPromo:t.convQtdMinPromo;
+  qtd=Number(qtd);
+  if(!isFinite(qtd)||qtd<=0)qtd=emPromo?(sex?10:20):null; // compatibilidade com campanhas antigas
+  return {rot:rot,lista:lista,prom:prom,vigente:vigente,emPromo:!!emPromo,flag:flag,situacao:sit,
+    codigo:sex?(t.codigoSex||codigoTipo(t.codigoBase||t.codigo,rot)):(t.codigoConv||t.codigoBase||t.codigo),
+    qtdMinPromo:qtd,promoPublico:t.promoPublico||"",promoObs:t.promoObs||"",promoFim:t.promoFim||""};
+}
+function promoResumo(m){
+  if(!m||!m.emPromo||!modalidadeTemPreco(m)||!m.qtdMinPromo)return null;
+  var qtd=Number(m.qtdMinPromo),total=m.vigente*qtd,economia=null;
+  if(typeof m.lista==="number"&&!isNaN(m.lista)&&m.lista>m.vigente)economia=(m.lista-m.vigente)*qtd;
+  return {qtd:qtd,total:total,economia:economia};
+}
+function textoPromoCurto(m){
+  var r=promoResumo(m);if(!r)return "";
+  var x=" · mínimo "+r.qtd+" doses · total mínimo "+brl(r.total);
+  if(r.economia!=null&&r.economia>0)x+=" · economia "+brl(r.economia);
+  return x;
+}
+function htmlRegraPromo(m){
+  var r=promoResumo(m);if(!r)return "";
+  var meta=[];
+  if(m.promoPublico)meta.push("Exclusiva para "+String(m.promoPublico).toLowerCase());
+  if(m.promoFim)meta.push("válida até "+m.promoFim);
+  if(m.promoObs)meta.push(m.promoObs);
+  return '<div class="promo-regra"><div class="promo-regra-tt">🔥 Promoção · pacote '+r.qtd+' doses</div><div class="promo-regra-grid"><span>Pedido mínimo<br><b>'+r.qtd+' doses</b></span><span>Total mínimo<br><b>'+brl(r.total)+'</b></span>'+(r.economia!=null&&r.economia>0?'<span>Economia no pacote<br><b>'+brl(r.economia)+'</b></span>':'')+'</div>'+(meta.length?'<div class="promo-regra-meta">'+esc(meta.join(" · "))+'</div>':'')+'</div>';
+}
+function linhasPromoMensagem(m){
+  var r=promoResumo(m);if(!r)return [];
+  var L=["  🔥 Pacote mínimo: *"+r.qtd+" doses*","  Total mínimo: *"+brl(r.total)+"*"];
+  if(r.economia!=null&&r.economia>0)L.push("  Economia no pacote: "+brl(r.economia));
+  return L;
+}
+function termosPromoMensagem(modalidades){
+  var ativos=modalidades.filter(function(m){return promoResumo(m);});if(!ativos.length)return [];
+  var m=ativos[0],L=[];
+  if(m.promoPublico)L.push("Condição válida para "+String(m.promoPublico).toLowerCase()+".");
+  if(m.promoFim)L.push("Válida até "+m.promoFim+".");
+  if(m.promoObs)L.push(m.promoObs);
+  return L;
+}
+function codigoPromoBase(c){var x=String(c||"").trim().toUpperCase();if(x.indexOf("511")===0)x="011"+x.slice(3);if(/^11[A-Z]{2}/.test(x))x="0"+x;return x;}
+function combosTouro(t){var codigo=codigoPromoBase(t.codigoBase||t.codigo);return (DADOS.promocoesCombinadas||[]).filter(function(p){return (p.codigos||[]).map(codigoPromoBase).indexOf(codigo)>=0;});}
+function htmlCombosTouro(t){return combosTouro(t).map(function(p){var qtd=Number(p.qtdPorTouro)||0,total=qtd*(p.codigos||[]).length,meta=[];if(p.publico)meta.push("Exclusiva para "+String(p.publico).toLowerCase());if(p.limiteCliente)meta.push("limite de "+p.limiteCliente+" pacote por cliente");if(p.dataFim)meta.push("válida até "+p.dataFim);if(p.observacao)meta.push(p.observacao);return '<div class="combo-promo"><div class="combo-promo-title">🔥 '+esc(p.titulo||"Promoção combinada")+'</div><div class="combo-promo-desc">Este touro participa de um pacote combinado com '+qtd+' doses convencionais de cada touro.</div><div class="combo-promo-grid"><span>Quantidade<br><b>'+qtd+' doses de cada</b></span><span>Total do pacote<br><b>'+brl(p.valorPacote)+'</b></span><span>Total de doses<br><b>'+total+' doses</b></span><span>Touros do pacote<br><b>'+esc((p.codigos||[]).join(' + '))+'</b></span></div>'+(meta.length?'<div class="combo-promo-meta">'+esc(meta.join(" · "))+'</div>':'')+'</div>';}).join("");}
+function linhasCombosMensagem(t){var L=[];combosTouro(t).forEach(function(p){var qtd=Number(p.qtdPorTouro)||0,total=qtd*(p.codigos||[]).length;L.push("");L.push("🔥 *"+(p.titulo||"Promoção combinada")+"*");L.push(qtd+" doses convencionais de cada touro ("+total+" doses no total)");L.push("Touros: "+(p.codigos||[]).join(" + "));L.push("Valor do pacote: *"+brl(p.valorPacote)+"*");if(p.limiteCliente)L.push("Limite: "+p.limiteCliente+" pacote por cliente.");if(p.publico)L.push("Condição válida para "+String(p.publico).toLowerCase()+".");if(p.dataFim)L.push("Válida até "+p.dataFim+".");if(p.observacao)L.push(p.observacao);});return L;}
+function pdfCombosTouro(t){var cs=combosTouro(t);if(!cs.length)return "";return cs.map(function(p){var qtd=Number(p.qtdPorTouro)||0,total=qtd*(p.codigos||[]).length;return '<div style="margin-top:5px;padding:5px 6px;background:#FFF7CC;border:1px solid #FACC15;border-radius:5px;color:#713F12;font-size:9px;line-height:1.3;text-align:left"><b>🔥 '+esc(p.titulo||"Promoção combinada")+'</b><br>'+qtd+' doses de cada touro · '+total+' doses · <b>'+brl(p.valorPacote)+'</b><br>'+esc((p.codigos||[]).join(' + '))+'</div>';}).join("");}
+function pdfTextoModalidade(m){
+  var txt=esc(textoModalidade(m)),r=promoResumo(m);if(!r)return txt;
+  txt+='<br><span style="font-size:9.5px;color:#9A3412;font-weight:700">Mín. '+r.qtd+' doses · Total '+brl(r.total)+(r.economia!=null&&r.economia>0?' · Economia '+brl(r.economia):'')+'</span>';
+  return txt;
 }
 function situacaoInfo(s){return SITUACOES[s]||SITUACOES.SEM_OFERTA;}
 function modalidadeComercial(m){return ["DISPONIVEL","CONFERIR_ESTOQUE","FILA_ESPERA","SOB_CONSULTA"].indexOf(m.situacao)>=0;}
@@ -822,15 +879,14 @@ function precoBloco(rot,t){
     if(m.emPromo&&m.lista!=null){var off=(m.lista>0)?Math.round((m.lista-m.vigente)/m.lista*100):0;val='<s>'+brl(m.lista)+'</s> <b>'+brl(m.vigente)+'</b>';tag=(off>0?' <span class="descoff">−'+off+'%</span>':' <span class="badge">promo</span>');}
     else val='<b>'+brl(m.vigente)+'</b>';
   }else val='<span class="sobconsulta">'+esc(info.rotulo)+'</span>';
-  var ptxt=(m.codigo?m.codigo+' · ':'')+t.nome+' · '+rot+' '+textoModalidade(m);
+  var ptxt=(m.codigo?m.codigo+' · ':'')+t.nome+' · '+rot+' '+textoModalidade(m)+textoPromoCurto(m);
   var copy=modalidadeComercial(m)?'<button class="pcopy" data-pcopy="'+esc(ptxt)+'">Copiar p/ pedido</button>':'';
-  var minNota=(m.emPromo)?'<div class="pmin">mínimo '+(rot==="Sexado"?10:20)+' doses</div>':'';
   var note=(modalidadeTemPreco(m)&&m.situacao!=="DISPONIVEL")?'<div class="sitnote '+info.classe+'">'+info.icone+' '+esc(info.rotulo)+'</div>':'';
-  return '<div class="pbloco'+(rot==="Sexado"?' sexado':'')+'"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+minNota+note+copy+'</div>';
+  return '<div class="pbloco'+(rot==="Sexado"?' sexado':'')+'"><div class="plabel">'+rot+tag+'</div><div class="pval">'+val+'</div>'+htmlRegraPromo(m)+note+copy+'</div>';
 }
 function effConv(t){return modalidadeTouro(t,"Convencional").vigente;}
 function effSex(t){return modalidadeTouro(t,"Sexado").vigente;}
-function temPromoTouro(t){return modalidadeTouro(t,"Convencional").emPromo||modalidadeTouro(t,"Sexado").emPromo;}
+function temPromoTouro(t){return modalidadeTouro(t,"Convencional").emPromo||modalidadeTouro(t,"Sexado").emPromo||combosTouro(t).length>0;}
 function codigoTipo(codigo,tipo){var s=String(codigo||"").trim();if(tipo!=="Sexado")return s;if(s.indexOf("011")===0)return "511"+s.slice(3);return s;}
 function bsUrl(t){ if(t.area!=="Leite Europeu") return ""; var c=t.codigoBase||t.codigo; return c?("https://bullsearch.altagenetics.com/brasil/BS/Bull/"+encodeURIComponent(String(c).trim())):""; }
 
@@ -952,6 +1008,7 @@ function cardTouro(t){
     fotoBloco+
     (chips?'<div class="tchips">'+chips+'</div>':'')+
     '<div class="precos">'+precoBloco("Convencional",t)+precoBloco("Sexado",t)+'</div>'+
+    htmlCombosTouro(t)+
     (traits?'<div class="traits">'+traits+'</div>':'')+
     geneal+
     (bsUrl(t)?'<button class="btn-bs" data-bs="'+esc(bsUrl(t))+'">Ver ficha completa (BullSearch)</button>':'')+
@@ -992,13 +1049,10 @@ function msgTouro(t){
   var L=["*"+t.nome+"* — "+racaLabel(t.raca)+((t.chips&&t.chips.length)?" ("+t.chips.join(" · ")+")":"")];
   L.push("Cód. base "+(t.codigoBase||t.codigo));
   var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado");
-  if(mc.codigo)L.push("Convencional: "+mc.codigo+" · "+textoModalidade(mc));
-  if(ms.codigo||ms.situacao!=="SEM_OFERTA")L.push("Sexado: "+(ms.codigo?ms.codigo+" · ":"")+textoModalidade(ms));
-  if((mc.emPromo||ms.emPromo) && t.tipo!=="tropical"){
-    L.push("");L.push("Promoção — válida só para clientes finais.");
-    if(ms.emPromo)L.push("Sexado: mínimo 10 doses por touro.");
-    if(mc.emPromo)L.push("Convencional: mínimo 20 doses por touro.");
-  }
+  if(mc.codigo){L.push("");L.push("*Convencional*");L.push(mc.codigo+" · "+textoModalidade(mc));Array.prototype.push.apply(L,linhasPromoMensagem(mc));}
+  if(ms.codigo||ms.situacao!=="SEM_OFERTA"){L.push("");L.push("*Sexado*");L.push((ms.codigo?ms.codigo+" · ":"")+textoModalidade(ms));Array.prototype.push.apply(L,linhasPromoMensagem(ms));}
+  var termos=termosPromoMensagem([mc,ms]);if(termos.length){L.push("");Array.prototype.push.apply(L,termos);}
+  Array.prototype.push.apply(L,linhasCombosMensagem(t));
   var tr=(t.caracteristicas||[]).filter(function(x){return x[1]!=null&&String(x[1]).trim()!=="";});
   if(tr.length){L.push("");var prova=(t.tipo==="europeu"&&DADOS.config&&DADOS.config.prova_le)?("Prova "+DADOS.config.prova_le):"";if(prova)L.push(prova);tr.forEach(function(x){L.push(x[0]+" "+fmtTrait(x[1]));});}
   if(t.genealogia){L.push("");L.push("Genealogia:");if(t.genealogia.pai)L.push("Pai: "+t.genealogia.pai);if(t.genealogia.mae)L.push("Mãe: "+t.genealogia.mae);if(t.genealogia.avo)L.push("Avô materno: "+t.genealogia.avo);}
@@ -1176,7 +1230,7 @@ function pdfPromocoes(){ var grupos=promoGrupos(); var body="";
   body+='<div class="pblock"><div class="pnome">'+esc(g0.produto)+(g0.apresentacao?' <span class="ap">('+esc(g0.apresentacao)+')</span>':'')+'</div><table><thead><tr><th>Quantidade</th><th class="r">Pre\u00e7o</th></tr></thead><tbody>'+linhas+'</tbody></table></div>'; });
  return body||'<p>Sem promo\u00e7\u00f5es de pre\u00e7o.</p>'; }
 function pdfTouros(){ var arr=tourosFiltrados().slice().sort(function(a,b){return String(a.nome||"").localeCompare(String(b.nome||""),"pt-BR");});
- var rows=arr.map(function(t){ var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado"); return '<tr><td>'+esc(t.nome)+'</td><td>'+esc(t.codigoBase||t.codigo)+'</td><td>'+esc(racaLabel(t.raca)||"")+'</td><td class="r">'+esc(textoModalidade(mc))+'</td><td class="r">'+esc(textoModalidade(ms))+'</td></tr>'; }).join("");
+ var rows=arr.map(function(t){ var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado"); return '<tr><td>'+esc(t.nome)+'</td><td>'+esc(t.codigoBase||t.codigo)+'</td><td>'+esc(racaLabel(t.raca)||"")+'</td><td class="r">'+pdfTextoModalidade(mc)+pdfCombosTouro(t)+'</td><td class="r">'+pdfTextoModalidade(ms)+'</td></tr>'; }).join("");
  return '<table class="ttab"><thead><tr><th>Touro</th><th>C\u00f3digo</th><th>Ra\u00e7a</th><th class="r">Convencional</th><th class="r">Sexado</th></tr></thead><tbody>'+rows+'</tbody></table>'; }
 function pdfMateriais(){ var rows=materiaisTodosBase().map(function(reg){ var x=reg.item;
   if(reg.tipo==="botijao") return '<tr><td>'+esc(x.nome)+'</td><td>Botijão</td><td>'+esc(x.codigo)+'</td><td class="r">'+(x.precoVazio!=null?brl(x.precoVazio):"\u2014")+'</td><td class="r">'+(x.precoSemen!=null?brl(x.precoSemen):"\u2014")+'</td></tr>';
@@ -1283,7 +1337,7 @@ function nl2br(s){return esc(s||'').replace(/\n/g,'<br>');}
 function pdfPrecoFaixa(x){if(x.emPromo)return '<s>'+brl(x.precoPublicado)+'</s> <b>'+brl(x.precoVigente)+'</b>';return '<b>'+brl(x.precoVigente)+'</b>';}
 function pdfItemProposta(r){var d=r.data||{},precos=proposta.meta.mostrarPrecos!==false,corpo='',sub=r.subtitulo||'';
  if(r.tipo==='produto'){var g=Array.isArray(d)?d:[],x=g[0]||{};corpo=imgPdf(x.imagem,x.produto);if(precos)corpo+='<table><thead><tr><th>Condição</th><th class="r">Preço</th></tr></thead><tbody>'+g.map(function(f){return '<tr><td>'+esc(rotulo(f))+'</td><td class="r">'+pdfPrecoFaixa(f)+'</td></tr>';}).join('')+'</tbody></table>';if(x.ipi)corpo+='<p class="pdfnote">Preço final já com IPI de '+pct(x.ipi)+' incluído.</p>';if(x.obs)corpo+='<p>'+esc(x.obs)+'</p>';}
- else if(r.tipo==='touro'){var t=d;corpo='';if(t.chips&&t.chips.length)corpo+='<div class="pdfchips">'+t.chips.map(function(c){return '<span>'+esc(c)+'</span>';}).join('')+'</div>';if(precos){var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado");corpo+='<table><thead><tr><th>Tipo</th><th class="r">Preço / situação</th></tr></thead><tbody><tr><td>Convencional</td><td class="r">'+esc(textoModalidade(mc))+'</td></tr><tr><td>Sexado</td><td class="r">'+esc(textoModalidade(ms))+'</td></tr></tbody></table>';}var tr=(t.caracteristicas||[]).filter(function(z){return z[1]!=null&&String(z[1]).trim()!=='';});if(tr.length)corpo+='<div class="pdftraits">'+tr.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtTrait(z[1]))+'</span>';}).join('')+'</div>';if(t.genealogia){var gl=[];if(t.genealogia.pai)gl.push('<b>Pai:</b> '+esc(t.genealogia.pai));if(t.genealogia.mae)gl.push('<b>Mãe:</b> '+esc(t.genealogia.mae));if(t.genealogia.avo)gl.push('<b>Avô materno:</b> '+esc(t.genealogia.avo));if(gl.length)corpo+='<p>'+gl.join('<br>')+'</p>';}var u=bsUrl(t);if(u)corpo+='<p class="pdflink">Ficha completa: '+esc(u)+'</p>';}
+ else if(r.tipo==='touro'){var t=d;corpo='';if(t.chips&&t.chips.length)corpo+='<div class="pdfchips">'+t.chips.map(function(c){return '<span>'+esc(c)+'</span>';}).join('')+'</div>';if(precos){var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado");corpo+='<table><thead><tr><th>Tipo</th><th class="r">Preço / situação</th></tr></thead><tbody><tr><td>Convencional</td><td class="r">'+pdfTextoModalidade(mc)+'</td></tr><tr><td>Sexado</td><td class="r">'+pdfTextoModalidade(ms)+'</td></tr></tbody></table>+pdfCombosTouro(t);}var tr=(t.caracteristicas||[]).filter(function(z){return z[1]!=null&&String(z[1]).trim()!=='';});if(tr.length)corpo+='<div class="pdftraits">'+tr.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtTrait(z[1]))+'</span>';}).join('')+'</div>';if(t.genealogia){var gl=[];if(t.genealogia.pai)gl.push('<b>Pai:</b> '+esc(t.genealogia.pai));if(t.genealogia.mae)gl.push('<b>Mãe:</b> '+esc(t.genealogia.mae));if(t.genealogia.avo)gl.push('<b>Avô materno:</b> '+esc(t.genealogia.avo));if(gl.length)corpo+='<p>'+gl.join('<br>')+'</p>';}var u=bsUrl(t);if(u)corpo+='<p class="pdflink">Ficha completa: '+esc(u)+'</p>';}
  else if(r.tipo==='botijao'){var m=d;corpo=imgPdf(m.imagem,m.nome);if(precos)corpo+='<table><thead><tr><th>Condição</th><th class="r">Preço</th></tr></thead><tbody><tr><td>Vazio (com ICMS)</td><td class="r">'+brl(m.precoVazio)+'</td></tr><tr><td>Com R$ 500 em sêmen + N²</td><td class="r">'+brl(m.precoSemen)+'</td></tr></tbody></table>';if(m.specs&&m.specs.length)corpo+='<div class="pdftraits">'+m.specs.map(function(z){return '<span><b>'+esc(z[0])+':</b> '+esc(fmtNum(z[1]))+'</span>';}).join('')+'</div>';}
  else if(r.tipo==='acessorio'){var a=d;corpo=imgPdf(a.imagem,a.nome);if(precos)corpo+='<div class="pdfbigprice">'+brl(a.precoFinal)+'</div>';if(a.ipi)corpo+='<p class="pdfnote">Preço final já com IPI de '+ipiPct(a.ipi)+' incluído.</p>';}
  else if(r.tipo==='software'){var s=d;if(precos)corpo+='<table><thead><tr><th>Plano</th><th class="r">Normal</th><th class="r">Cliente</th></tr></thead><tbody>'+(s.planos||[]).map(function(p){return '<tr><td>'+esc(p.categoria)+'</td><td class="r">'+brl(p.normal)+esc(p.unidade||'')+'</td><td class="r">'+brl(p.cliente)+esc(p.unidade||'')+'</td></tr>';}).join('')+'</tbody></table>';if(s.obs)corpo+='<p class="pdfnote">'+esc(s.obs)+'</p>';}
@@ -1310,7 +1364,11 @@ function textoItemProposta(r,indice){
     if(precos){
       var mc=modalidadeTouro(t,"Convencional"),ms=modalidadeTouro(t,"Sexado");
       L.push("• Convencional: "+textoModalidade(mc));
+      linhasPromoMensagem(mc).forEach(function(x){L.push("  "+x.trim());});
       L.push("• Sexado: "+textoModalidade(ms));
+      linhasPromoMensagem(ms).forEach(function(x){L.push("  "+x.trim());});
+      termosPromoMensagem([mc,ms]).forEach(function(x){L.push("• "+x);});
+      linhasCombosMensagem(t).forEach(function(x){L.push(x);});
     }
     var tr=(t.caracteristicas||[]).filter(function(z){return z[1]!=null&&String(z[1]).trim()!=='';});
     if(tr.length)L.push("• Características: "+tr.map(function(z){return z[0]+": "+fmtTrait(z[1]);}).join(" | "));

@@ -917,8 +917,17 @@ function aplicarFotoTouro(wrap, info){
       'data-imgopen="'+esc(url)+'"/>'+
       '<button class="btn-img" data-imgshare="'+esc(url)+'">Baixar / enviar foto</button>';
     var imgEl=wrap.querySelector("img");
-    // Se a foto do BullSearch não carregar (hotlink/URL protegida), cai na silhueta em vez de sumir.
-    if(imgEl) imgEl.onerror=function(){ mostrarSilhuetaTouro(wrap); };
+    // Se a foto do BullSearch não carregar (hotlink/URL protegida),
+    // transforma o registro em "sem foto" também para proposta e PDF.
+    if(imgEl) imgEl.onerror=function(){
+      var codigo=String(wrap.getAttribute("data-bull-codigo")||"").trim().toUpperCase();
+      if(codigo){
+        var anterior=BULL_IMG[codigo]||{};
+        BULL_IMG[codigo]={imagem:PLACEHOLDER_TOURO,ficha:anterior.ficha||"",encontrado:false};
+        atualizarFotoTouroNaProposta(codigo,PLACEHOLDER_TOURO);
+      }
+      mostrarSilhuetaTouro(wrap);
+    };
     var io=wrap.querySelector('[data-imgopen]'); if(io) io.onclick=function(){window.open(io.dataset.imgopen,'_blank','noopener');};
     var is=wrap.querySelector('[data-imgshare]'); if(is) is.onclick=function(){shareImg(is.dataset.imgshare);};
   }else{
@@ -1420,6 +1429,29 @@ function montarTextoProposta(){
 function copiarTextoProposta(){if(!garantirOnline())return;var t=montarTextoProposta();if(!t){toast("Selecione ao menos um item");return;}copiar(t);}
 function enviarWhatsAppProposta(){if(!garantirOnline())return;var t=montarTextoProposta();if(!t){toast("Selecione ao menos um item");return;}whats(t);}
 function gerarPDFPropostaAgora(){if(!garantirOnline())return;lerCamposProposta();if(!proposta.itens.length){toast("Selecione ao menos um item");return;}var m=proposta.meta,hoje=new Date().toLocaleDateString('pt-BR');var dados=[];if(m.cliente)dados.push('<b>Cliente:</b> '+esc(m.cliente));if(m.fazenda)dados.push('<b>Fazenda/empresa:</b> '+esc(m.fazenda));if(m.vendedor)dados.push('<b>Responsável:</b> '+esc(m.vendedor));if(m.telefone)dados.push('<b>Telefone:</b> '+esc(m.telefone));if(m.validade)dados.push('<b>Validade:</b> '+esc(m.validade));var logo=pdfLogo();var doc='<!doctype html><html lang="pt-br"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+esc(m.titulo)+'</title><style>*{box-sizing:border-box}body{margin:0;background:#eef3f9;color:#0B1B33;font-family:Segoe UI,Arial,sans-serif}.bar{position:sticky;top:0;z-index:5;background:#003C88;text-align:center;padding:10px}.bar button{border:0;border-radius:9px;background:#fff;color:#003C88;font-weight:900;padding:11px 18px;font-size:14px;cursor:pointer}.head{background:linear-gradient(135deg,#002A66,#0057A8 65%,#00A3D7);color:#fff;padding:25px 30px}.headtop{display:flex;align-items:center;justify-content:space-between;gap:18px}.head img{height:42px}.head h1{font-size:25px;margin:12px 0 2px}.head .date{font-size:11px;opacity:.85}.ident{margin-top:15px;display:grid;grid-template-columns:1fr 1fr;gap:7px 18px;font-size:12px}.intro,.obsgeral{background:#fff;border:1px solid #dfe8f3;border-radius:12px;padding:13px 15px;margin:15px auto 0;max-width:900px;font-size:13px;line-height:1.5}.content{max-width:900px;margin:16px auto;padding:0 16px 28px}.pdfitem{background:#fff;border:1px solid #dfe8f3;border-radius:14px;padding:16px 18px;margin-bottom:13px;break-inside:avoid;page-break-inside:avoid}.pdfitem h2{font-size:18px;margin:2px 0}.pdftipo{display:inline-block;background:#eaf2fb;color:#003C88;border-radius:5px;padding:3px 7px;font-size:9px;font-weight:900;text-transform:uppercase;letter-spacing:.05em}.pdfsubitem{font-size:11px;color:#5A6B82;margin-top:3px}.pdfimg{text-align:center;margin:13px 0}.pdfimg img{max-width:100%;max-height:210px;object-fit:contain;border-radius:10px}.pdfchips,.pdftraits{display:flex;flex-wrap:wrap;gap:7px 12px;margin:12px 0}.pdfchips span{background:#eaf7f0;color:#0A7B4F;border-radius:6px;padding:3px 8px;font-size:10px;font-weight:800}.pdftraits span{font-size:11.5px}.pdftraits b{color:#5A6B82}table{width:100%;border-collapse:collapse;margin-top:12px;font-size:12px}th{background:#003C88;color:#fff;text-align:left;padding:8px}td{border-bottom:1px solid #e8eef5;padding:8px}.r{text-align:right}.pdfnote{font-size:10.5px;color:#5A6B82;font-style:italic}.pdfbigprice{font-size:22px;color:#003C88;font-weight:900;margin-top:12px}.pdfpromo{white-space:normal;font-size:13px;line-height:1.55;margin-top:12px;padding:12px;background:#fff7f0;border:1px solid #f4c79b;border-radius:10px}.pdflink{font-size:10px;color:#5A6B82;word-break:break-all}.pdfobsitem{margin-top:12px;padding:10px 11px;background:#f7fafe;border-left:4px solid #0057A8;border-radius:7px;font-size:11.5px;line-height:1.45}.foot{max-width:900px;margin:0 auto;padding:14px 20px 24px;color:#5A6B82;font-size:10.5px;line-height:1.5}@media print{body{background:#fff}.bar{display:none}.head{-webkit-print-color-adjust:exact;print-color-adjust:exact}.content{padding:0;margin-top:12px}.pdfitem{box-shadow:none}@page{margin:9mm}}@media(max-width:600px){.ident{grid-template-columns:1fr}.head{padding:20px}.content{padding:0 9px}}</style></head><body><div class="bar"><button onclick="window.print()">Baixar / salvar em PDF</button></div><header class="head"><div class="headtop"><div>'+logo+'</div><div class="date">Emitido em '+hoje+'</div></div><h1>'+esc(m.titulo||'Seleção personalizada')+'</h1><div class="ident">'+dados.map(function(x){return '<div>'+x+'</div>';}).join('')+'</div></header>'+(m.mensagem?'<div class="intro">'+nl2br(m.mensagem)+'</div>':'')+'<main class="content">'+proposta.itens.map(pdfItemProposta).join('')+(m.observacoes?'<div class="obsgeral"><b>Observações gerais</b><br>'+nl2br(m.observacoes)+'</div>':'')+'</main><footer class="foot">Material informativo personalizado. Este documento não constitui pedido de compra e não apresenta valor total. Preços, promoções, disponibilidade e condições comerciais estão sujeitos à confirmação com o representante Alta.<br>'+esc(PARCELAMENTO)+'</footer><script>window.onload=function(){var imgs=[].slice.call(document.images),p=imgs.map(function(i){return i.complete?Promise.resolve():new Promise(function(r){i.onload=i.onerror=r})});Promise.all(p).then(function(){setTimeout(function(){window.focus();window.print()},500)});setTimeout(function(){window.focus()},1500)}<\/script></body></html>';var w=window.open('','_blank');if(!w){alert('Permita pop-ups para gerar o PDF.');return;}w.document.open();w.document.write(doc);w.document.close();}
+function validarFotosTourosProposta(codigos,done){
+  var pendentes=codigos.filter(function(c){
+    var info=BULL_IMG[c]||{};
+    return info.imagem && info.imagem!==PLACEHOLDER_TOURO;
+  });
+  if(!pendentes.length){done();return;}
+  var restantes=pendentes.length,finalizado=false;
+  function concluir(){
+    restantes--;
+    if(restantes<=0&&!finalizado){finalizado=true;done();}
+  }
+  pendentes.forEach(function(c){
+    var info=BULL_IMG[c]||{},img=new Image();
+    img.onload=function(){concluir();};
+    img.onerror=function(){
+      BULL_IMG[c]={imagem:PLACEHOLDER_TOURO,ficha:info.ficha||"",encontrado:false};
+      atualizarFotoTouroNaProposta(c,PLACEHOLDER_TOURO);
+      concluir();
+    };
+    img.src=info.imagem;
+  });
+  setTimeout(function(){if(!finalizado){finalizado=true;done();}},4500);
+}
 function carregarFotosTourosProposta(done){
   var codigos=[];
   (proposta.itens||[]).forEach(function(r){
@@ -1427,7 +1459,8 @@ function carregarFotosTourosProposta(done){
     var c=codigoFotoTouro(r.data);if(c&&codigos.indexOf(c)<0)codigos.push(c);
   });
   var faltantes=codigos.filter(function(c){return !BULL_IMG[c];});
-  if(!faltantes.length){done();return;}
+  function validarEDepois(){validarFotosTourosProposta(codigos,done);}
+  if(!faltantes.length){validarEDepois();return;}
   faltantes.forEach(function(c){
     _bullEsperando[c]=_bullEsperando[c]||[];
     if(!_bullEmVoo[c]&&_bullFila.indexOf(c)<0)_bullFila.push(c);
@@ -1436,7 +1469,7 @@ function carregarFotosTourosProposta(done){
   flushFilaBull();
   var inicio=Date.now(),timer=setInterval(function(){
     var terminou=faltantes.every(function(c){return !!BULL_IMG[c];});
-    if(terminou||Date.now()-inicio>5000){clearInterval(timer);done();}
+    if(terminou||Date.now()-inicio>5000){clearInterval(timer);validarEDepois();}
   },100);
 }
 function gerarPDFProposta(){

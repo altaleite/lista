@@ -3,6 +3,9 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"/>
+<meta http-equiv="Pragma" content="no-cache"/>
+<meta http-equiv="Expires" content="0"/>
 <title>Alta · Lista de Preços</title>
 <meta name="app-build" content="2026-07-20-v8.2-europeu-combo"/>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
@@ -236,8 +239,8 @@ button,input{font:inherit;color:inherit}
 
 /* ---------- Proposta personalizada (módulo isolado) ---------- */
 .wrap{padding-bottom:154px}
-.proposta-slot{display:block;width:100%;clear:both;position:relative;z-index:2}
-.btn-selecionar{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:11px;background:#fff;color:var(--azul);border:1.5px solid #BFD4ED;border-radius:12px;min-height:44px;font-weight:800;font-size:13px;cursor:pointer;transition:.15s}
+.proposta-slot{display:block!important;width:100%;clear:both;position:relative;z-index:20;min-height:44px;visibility:visible!important;opacity:1!important}
+.btn-selecionar{display:flex!important;visibility:visible!important;opacity:1!important;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:11px;background:#fff;color:var(--azul);border:1.5px solid #BFD4ED;border-radius:12px;min-height:44px;font-weight:800;font-size:13px;cursor:pointer;transition:.15s}
 .btn-selecionar:hover{border-color:var(--azul2);background:#F5F9FE}
 .btn-selecionar.on{background:#EAF7F0;color:var(--verde);border-color:#9BD3B8}
 .btn-selecionar:active{filter:brightness(.96)}
@@ -1040,6 +1043,8 @@ function renderTouros(){
   if(!arr.length){ el.innerHTML='<div class="empty">Nenhum touro com esses filtros. Limpe a busca ou os filtros.</div>'; return; }
   arr.forEach(function(t){ el.appendChild(cardTouro(t)); });
   observarFotosTouro();
+  garantirBotoesPropostaTouros();
+  setTimeout(garantirBotoesPropostaTouros,300);
 }
 
 function racaLabel(r){ return r==="QL"?"Gir Leiteiro":r; }
@@ -1354,6 +1359,18 @@ function anexarSelecao(card,reg){
 }
 function atualizarBotaoSelecao(btn){var on=estaSelecionado(btn.dataset.selectId);btn.classList.toggle("on",on);btn.textContent=on?"✓ Selecionado para o PDF":"+ Adicionar à proposta";}
 function sincronizarBotoesSelecao(){document.querySelectorAll("[data-select-id]").forEach(atualizarBotaoSelecao);}
+function garantirBotoesPropostaTouros(){
+  document.querySelectorAll('#tlist .card.touro').forEach(function(card){
+    var slot=card.querySelector('.proposta-slot');
+    if(!slot){slot=document.createElement('div');slot.className='proposta-slot';var acts=card.querySelector('.acts');if(acts)card.insertBefore(slot,acts);else card.appendChild(slot);}
+    if(!slot.querySelector('.btn-selecionar')){
+      var nome=(card.querySelector('h3')||{}).textContent||'';
+      var t=(tourosFiltrados()||[]).find(function(x){return String(x.nome||'').trim()===String(nome).replace(/🔥 promo/g,'').trim();});
+      if(t)anexarSelecao(card,registroTouro(t));
+    }
+  });
+}
+
 function atualizarFabProposta(){var n=proposta.itens.length,c=$('propostaCount'),lc=$('propostaListaCount'),g=$('propostaGerar'),cp=$('propostaCopiar'),wa=$('propostaWhats');if(c)c.textContent=n+(n===1?" item":" itens");if(lc)lc.textContent="("+n+")";if(g)g.disabled=!n||!ONLINE_OK;if(cp)cp.disabled=!n||!ONLINE_OK;if(wa)wa.disabled=!n||!ONLINE_OK;}
 function abrirProposta(){if(!garantirOnline())return;popularCamposProposta();renderListaProposta();$('propostaOverlay').classList.remove('hidden');$('propostaOverlay').setAttribute('aria-hidden','false');document.body.style.overflow='hidden';}
 function fecharProposta(){$('propostaOverlay').classList.add('hidden');$('propostaOverlay').setAttribute('aria-hidden','true');document.body.style.overflow='';}
@@ -1564,6 +1581,10 @@ setTimeout(function(){
     document.head.appendChild(link);
   }catch(e){}
 })();
+</script>
+<script>
+window.addEventListener('pageshow',function(e){if(e.persisted){window.location.reload();}});
+window.__ALTA_BUILD='2026-07-21-estavel-88';
 </script>
 </body>
 </html>

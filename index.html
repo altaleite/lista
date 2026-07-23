@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <title>Alta · Lista de Preços</title>
-<meta name="app-build" content="2026-07-23-v8.3-estavel"/>
+<meta name="app-build" content="2026-07-23-v8.4-abertura-imediata"/>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="Alta · Lista de Preços"/>
@@ -454,7 +454,42 @@ function preservarImagensBase(d){
 }
 
 function carregar(){
+  var CACHE_KEY="alta_lista_cache_v84";
+  var cacheLocal=null;
+
+  function lerCacheLocal(){
+    try{
+      var raw=localStorage.getItem(CACHE_KEY);
+      if(!raw)return null;
+      var pacote=JSON.parse(raw);
+      if(!pacote || !dadosValidos(pacote.dados))return null;
+      return pacote;
+    }catch(e){return null;}
+  }
+
+  function salvarCacheLocal(d){
+    try{
+      localStorage.setItem(CACHE_KEY,JSON.stringify({salvoEm:new Date().toISOString(),dados:d}));
+    }catch(e){}
+  }
+
+  cacheLocal=lerCacheLocal();
+  if(cacheLocal){
+    DADOS=preservarImagensBase(cacheLocal.dados);
+    fonte(
+      true,
+      "Lista disponível — verificando atualização…",
+      "Última alteração na lista: "+fmtDataHoraCompleta(DADOS.ultimaAlteracaoLista)
+    );
+    gate();
+    try{render();}catch(e){console.error(e);}
+  }
+
   if(!CONFIG.URL || CONFIG.URL.indexOf("http")!==0){
+    if(cacheLocal){
+      fonte(true,"Lista salva disponível — atualização indisponível","Última alteração na lista: "+fmtDataHoraCompleta(DADOS.ultimaAlteracaoLista));
+      return;
+    }
     DADOS=EMBEDDED; fonte(false,"URL do Apps Script não configurada"); gate(); render(); return;
   }
 
@@ -469,6 +504,14 @@ function carregar(){
     if(finalizado)return;
     finalizado=true;
     limparTudo();
+    if(cacheLocal){
+      fonte(
+        true,
+        "Lista salva disponível — atualização pendente",
+        "Última alteração na lista: "+fmtDataHoraCompleta(DADOS.ultimaAlteracaoLista)
+      );
+      return;
+    }
     DADOS=EMBEDDED;
     fonte(false,msg);
     gate();
@@ -478,7 +521,9 @@ function carregar(){
   function iniciarTentativa(){
     if(finalizado)return;
     tentativa++;
-    fonte(false,tentativa===1?"Conectando à lista vigente…":"A conexão demorou. Tentando novamente…");
+    if(!cacheLocal){
+      fonte(false,tentativa===1?"Conectando à lista vigente…":"A conexão demorou. Tentando novamente…");
+    }
 
     var cb="__altaListaCB_"+Date.now()+"_"+tentativa;
     var s=document.createElement("script");
@@ -502,6 +547,7 @@ function carregar(){
       limparTudo();
       limparCallback();
       DADOS=preservarImagensBase(d);
+      salvarCacheLocal(DADOS);
       fonte(
         true,
         "Consulta realizada: "+fmtDataHoraCompleta(new Date()),
@@ -526,7 +572,7 @@ function carregar(){
       limparCallback();
       if(tentativa<maxTentativas){iniciarTentativa();}
       else{concluirFalha("Sem resposta — compartilhamento bloqueado");}
-    },45000);
+    },35000);
     timers.push(timer);
   }
 

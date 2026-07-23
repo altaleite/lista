@@ -475,7 +475,7 @@ function carregar(){
   s.src=CONFIG.URL+(CONFIG.URL.indexOf("?")>=0?"&":"?")+"callback="+cb+"&_="+Date.now();
   s.onerror=function(){ falhar("Sem conexão — compartilhamento bloqueado",s); };
   document.body.appendChild(s);
-  setTimeout(function(){ falhar("Sem resposta — compartilhamento bloqueado",s); },10000);
+  setTimeout(function(){ falhar("Sem resposta — compartilhamento bloqueado",s); },35000);
 }
 
 /* ---------- dados por contexto ---------- */

@@ -7,7 +7,7 @@
 <meta http-equiv="Pragma" content="no-cache"/>
 <meta http-equiv="Expires" content="0"/>
 <title>Alta · Lista de Preços</title>
-<meta name="app-build" content="2026-07-20-v8.2-europeu-combo"/>
+<meta name="app-build" content="2026-07-23-v8.3-estavel"/>
 <meta name="description" content="Consulta rápida de preços da Alta para a equipe de campo. Busque o produto ou código e envie o valor pelo WhatsApp."/>
 <meta property="og:type" content="website"/>
 <meta property="og:title" content="Alta · Lista de Preços"/>
@@ -454,28 +454,83 @@ function preservarImagensBase(d){
 }
 
 function carregar(){
-  if(!CONFIG.URL || CONFIG.URL.indexOf("http")!==0){ DADOS=EMBEDDED; fonte(false,"URL do Apps Script não configurada"); gate(); render(); return; }
-  fonte(false,"Conectando à lista vigente…");
-  var cb="__neoCB_"+Date.now(), done=false;
-  var limpar=function(sc){ try{delete window[cb];}catch(e){window[cb]=undefined;} if(sc&&sc.parentNode)sc.parentNode.removeChild(sc); };
-  function falhar(msg,sc){ if(done)return; done=true; DADOS=EMBEDDED; fonte(false,msg); gate(); try{render();}catch(e){} limpar(sc); }
-  window[cb]=function(d){
-    if(done)return; done=true;
-    if(dadosValidos(d)){
-      DADOS=preservarImagensBase(d);
-      var ex=d.bloqueadosPorDivergencia?(" · "+d.bloqueadosPorDivergencia+" bloqueado(s)"):"";
-      var versao=d.schemaVersion?(" · API v"+d.schemaVersion):" · API legada";
-      fonte(true,"Consulta realizada: "+fmtDataHoraCompleta(new Date()),"Última alteração na lista: "+fmtDataHoraCompleta(d.ultimaAlteracaoLista));
-    }else{
-      DADOS=EMBEDDED; fonte(false,"Resposta inválida — compartilhamento bloqueado");
+  if(!CONFIG.URL || CONFIG.URL.indexOf("http")!==0){
+    DADOS=EMBEDDED; fonte(false,"URL do Apps Script não configurada"); gate(); render(); return;
+  }
+
+  var finalizado=false, tentativa=0, maxTentativas=2, scripts=[], timers=[];
+
+  function limparTudo(){
+    timers.forEach(function(t){clearTimeout(t);});
+    scripts.forEach(function(sc){if(sc&&sc.parentNode)sc.parentNode.removeChild(sc);});
+  }
+
+  function concluirFalha(msg){
+    if(finalizado)return;
+    finalizado=true;
+    limparTudo();
+    DADOS=EMBEDDED;
+    fonte(false,msg);
+    gate();
+    try{render();}catch(e){}
+  }
+
+  function iniciarTentativa(){
+    if(finalizado)return;
+    tentativa++;
+    fonte(false,tentativa===1?"Conectando à lista vigente…":"A conexão demorou. Tentando novamente…");
+
+    var cb="__altaListaCB_"+Date.now()+"_"+tentativa;
+    var s=document.createElement("script");
+    scripts.push(s);
+
+    function limparCallback(){
+      try{delete window[cb];}catch(e){window[cb]=undefined;}
+      if(s&&s.parentNode)s.parentNode.removeChild(s);
     }
-    gate(); try{render();}catch(e){} limpar(s);
-  };
-  var s=document.createElement("script");
-  s.src=CONFIG.URL+(CONFIG.URL.indexOf("?")>=0?"&":"?")+"callback="+cb+"&_="+Date.now();
-  s.onerror=function(){ falhar("Sem conexão — compartilhamento bloqueado",s); };
-  document.body.appendChild(s);
-  setTimeout(function(){ falhar("Sem resposta — compartilhamento bloqueado",s); },35000);
+
+    window[cb]=function(d){
+      if(finalizado)return;
+      if(!dadosValidos(d)){
+        limparCallback();
+        if(tentativa<maxTentativas){iniciarTentativa();}
+        else{concluirFalha("Resposta inválida — compartilhamento bloqueado");}
+        return;
+      }
+
+      finalizado=true;
+      limparTudo();
+      limparCallback();
+      DADOS=preservarImagensBase(d);
+      fonte(
+        true,
+        "Consulta realizada: "+fmtDataHoraCompleta(new Date()),
+        "Última alteração na lista: "+fmtDataHoraCompleta(d.ultimaAlteracaoLista)
+      );
+      gate();
+      try{render();}catch(e){console.error(e);}
+    };
+
+    s.onerror=function(){
+      if(finalizado)return;
+      limparCallback();
+      if(tentativa<maxTentativas){iniciarTentativa();}
+      else{concluirFalha("Sem conexão — compartilhamento bloqueado");}
+    };
+
+    s.src=CONFIG.URL+(CONFIG.URL.indexOf("?")>=0?"&":"?")+"callback="+encodeURIComponent(cb)+"&_="+Date.now();
+    document.body.appendChild(s);
+
+    var timer=setTimeout(function(){
+      if(finalizado)return;
+      limparCallback();
+      if(tentativa<maxTentativas){iniciarTentativa();}
+      else{concluirFalha("Sem resposta — compartilhamento bloqueado");}
+    },45000);
+    timers.push(timer);
+  }
+
+  iniciarTentativa();
 }
 
 /* ---------- dados por contexto ---------- */
@@ -1607,7 +1662,7 @@ setTimeout(function(){
 </script>
 <script>
 window.addEventListener('pageshow',function(e){if(e.persisted){window.location.reload();}});
-window.__ALTA_BUILD='2026-07-21-estavel-88';
+window.__ALTA_BUILD='2026-07-23-estavel-90';
 </script>
 </body>
 </html>
